@@ -1,7 +1,5 @@
-// ============================================================================
+
 // WriScroll Language — Documentation
-// ============================================================================
-//
 // Версия: 1.0.0 (2.6.0)
 // Дата: 20-09-2026
 // Автор: Longinov Denis, Tashkent
@@ -18,7 +16,7 @@
 //   docs/ru/reference (ru).md     — Part VI. Reference
 //
 // Английские версии — в docs/en/.
-// ============================================================================
+
 
 export const WRISCROLL_DOCUMENTATION = `
 # WriScroll Language — Documentation
