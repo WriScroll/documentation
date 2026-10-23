@@ -1,14 +1,10 @@
+WriScroll Language — Documentation
+Версия: 1.0.0 (2.6.0)
+Дата: 20-09-2026
+Автор: Longinov Denis, Tashkent
+Лицензия: MIT
 
-// WriScroll Language — Documentation
-// Версия: 1.0.0 (2.6.0)
-// Дата: 20-09-2026
-// Автор: Longinov Denis, Tashkent
-// Лицензия: MIT
-//
-// Этот файл — сводная документация для интерпретатора WriScroll.
-//
-// Английские версии — в docs/en/.
-
+Этот файл — сводная документация для интерпретатора WriScroll.
 
 export const WRISCROLL_DOCUMENTATION = `
 # WriScroll Language — Documentation
@@ -19,8 +15,6 @@ export const WRISCROLL_DOCUMENTATION = `
 **Лицензия:** MIT
 
 ---
-
-
 
 ## 1. Overview
 
