@@ -1,8 +1,8 @@
-WriScroll Language — Documentation
-Версия: 1.0.0 (2.6.0)
-Дата: 20-09-2026
-Автор: Longinov Denis, Tashkent
-Лицензия: MIT
+**WriScroll Language — Documentation**
+**Версия: 1.0.0 (2.6.0)**
+**Дата: 20-09-2026**
+**Автор: Longinov Denis, Tashkent**
+**Лицензия: MIT**
 
 Этот файл — сводная документация для интерпретатора WriScroll.
 
@@ -4398,150 +4398,674 @@ CELL::(0,4):
 
 ---
 
-## Часть VI. Reference
+## 29. Golden Rules
 
-### Golden Rules
+### 29.1. Синтаксис
 
-**Синтаксис:**
+1. Вложенность определяется отступами.
+2. `::` — присвоение (состояние).
+3. `>>` — выполнение (действие).
+4. `?>` — проверка (условие).
+5. Одинарный маркер — пользователь (`|$|`, `|?|`, `|!|`).
+6. Двойной маркер — система (`|$$|`, `|??|`).
+7. Все блоки имеют явное закрытие (`:IF`, `:FOR`, `:WHILE`, `:TRY`).
 
-1. Вложенность — отступами.
-2. \`::\` — присвоение.
-3. \`>>\` — выполнение.
-4. \`?>\` — проверка.
-5. Одинарный маркер — пользователь.
-6. Двойной маркер — система.
-7. Все блоки имеют явное закрытие.
+### 1.2. Маркеры
 
-**Маркеры:**
-
-8. \`|F5|?>\` и \`|TYP|?>\` НЕ ТРЕБУЮТ ЗАКРЫТИЯ.
-9. \`STOP\` и \`NEXT\` — управление циклами.
-10. \`SYS::\` — контейнер; \`FUNC::\` — функция.
-11. Идентификаторы событий — \`snake_case\`.
-12. \`|+|>>\` добавляет ОТДЕЛЬНЫЙ элемент.
+8. `|F5|?>` и `|TYP|?>` НЕ ТРЕБУЮТ ЗАКРЫТИЯ.
+9. `STOP` и `NEXT` — управление циклами.
+10. `SYS::` — объект-контейнер; `FUNC::` — функция.
+11. Идентификаторы событий в `snake_case`.
+12. `|+|>>` добавляет ОТДЕЛЬНЫЙ элемент в массив.
 13. Инлайн-циклы ЗАПРЕЩЕНЫ.
-14. \`WGET\` с \`id\` обновляет контейнер.
-15. \`|$|::{}\` — ASSIGN или MUTATE.
+14. `WGET` с `id` обновляет содержимое контейнера.
+15. `|$|::{}` может быть ASSIGN или MUTATE.
 
-**Безопасность:**
+### 29.3. Безопасность
 
-16. \`SECURITY\` — обязательный блок в CRM.
-17. Capabilities обязательны.
-18. \`|PERM|::\` — настройка, \`|PERM|>>\` — выдача, \`|PERM|?>\` — проверка.
-19. \`WRITE = CREATE + UPDATE\`.
-20. Scope применяется runtime на уровне \`DATASET\`.
-21. \`apply_scope=true\` физически ограничивает записи.
-22. Имя Scope уникально.
-23. \`StudentSubjects\` — many-to-many.
-24. Scope проверяется и при \`CREATE\`.
-25. \`|AUDIT|>>\` фиксирует успешные и отказанные операции.
-26. Конвейер: \`IN → CHECK → VALID → PERM → RULE → DB → AUDIT → OUT\`.
-27. \`SUBMIT\` не обходит проверки.
-28. \`@str\` никогда не исполняется.
+16. `SECURITY` — обязательный блок в CRM-приложении.
+17. Capabilities обязательны для системных вызовов.
+18. `|PERM|::` — настройка, `|PERM|>>` — выдача, `|PERM|?>` — проверка.
+19. `WRITE = CREATE + UPDATE`.
+20. Scope применяется runtime на уровне `DATASET`, до GUI.
+21. `apply_scope=true` физически ограничивает набор записей.
+22. Имя Scope уникально в пределах приложения.
+23. `StudentSubjects` — reference-паттерн many-to-many.
+24. Scope проверяется и при `CREATE`, не только при `READ`.
+25. `|AUDIT|>>` фиксирует успешные и отказанные операции.
+26. Конвейер: `IN → CHECK → VALID → PERM → RULE → DB → AUDIT → OUT`.
+27. `SUBMIT` не обходит проверки.
+28. `@str` никогда не исполняется как код.
 29. Фильтрация слов ≠ безопасность.
-30. \`GUI ≠ SECURITY\`.
-31. \`PERMISSION ≠ VISIBILITY\`.
-32. \`FILTER ≠ VALIDATION\`.
-33. \`DATA ≠ CODE\`.
-34. AutoID — учебный; для production — UUID / sequence.
-35. Consistency Rule.
+30. `GUI ≠ SECURITY` — скрытие ≠ запрет.
+31. `PERMISSION ≠ VISIBILITY`.
+32. `FILTER ≠ VALIDATION`.
+33. `DATA ≠ CODE`.
+34. AutoID — учебный механизм; для production — UUID / sequence.
+35. Consistency Rule: без проверок `DB`-операция не выполняется.
 
-**Типы и точность:**
+### 29.4. Типы и точность
 
-36. \`@mon\` — 2 знака, валюта.
-37. \`@prc\` — 2 знака, \`%\`.
-38. \`@dec(n)\` — \`0 ≤ n ≤ 15\`.
+36. `@mon` — 2 знака, валюта сохраняется.
+37. `@prc` — 2 знака, вывод `%`.
+38. `@dec(n)` — точность `n` (`0 ≤ n ≤ 15`).
 39. Валюты нельзя смешивать.
-40. \`@prc\` ≠ \`@mon\` без приведения.
-41. \`money * prc\` → \`money\`.
-42. \`money ± prc\` → надбавка / скидка.
-43. Постфиксный \`%\` — процент. Бинарный — остаток.
-44. Финансовые операции детерминированы.
-45. \`|FORMAT|>>\`.
-46. \`|ROUND|>>\`.
-47. \`|CONVERT|>>\`.
-48. \`|CHECK_PRECISION|>>\`.
+40. `@prc` нельзя присвоить в `@mon` без явного приведения.
+41. `money * prc` → `money` (процент).
+42. `money + prc` → надбавка; `money - prc` → скидка.
+43. Постфиксный `%` — процент. Бинарный `%` — остаток.
+44. Все финансовые операции детерминированы.
+45. Форматирование: `|FORMAT|>>{value, "USD"}`.
+46. Округление: `|ROUND|>>{value, "bankers"}`.
+47. Конвертация: `|CONVERT|>>{value, "EUR", 1.1}`.
+48. Проверка точности: `|CHECK_PRECISION|>>{value, "mon", 2}`.
 
-**GUI и WSS:**
+### 29.5. GUI и WSS
 
-49. Интерфейс — теми же маркерами.
-50. \`GRID → CELL → TRELLIS → ITEM\`.
-51. \`ITEM\` внутри \`ITEM\` — запрещено.
-52. \`TRELLIS\` внутри \`ITEM\` — разрешено.
-53. \`CELL\` — три уровня.
-54. WSS: \`%\`, \`$\`, \`extends\`, \`|media|::\`.
-55. \`extends\` — максимум 5 уровней.
-56. Приоритеты стилей.
-57. Графики — только через \`|WGET|>>{}\`.
-58. Данные для графиков — \`@arr\`.
-59. После изменения — \`|WGET|>>\`.
-60. \`color\`, \`height\`, \`smooth\`.
-61. Мультисерии — массив массивов.
+49. Интерфейс описывается теми же маркерами, что и логика.
+50. `GRID → CELL → TRELLIS → ITEM` — 9 позиций на каждом уровне.
+51. `ITEM` внутри `ITEM` — запрещено.
+52. `TRELLIS` внутри `ITEM` — разрешено (без ограничения глубины).
+53. `CELL` имеет три уровня: `(N,M)`, `(N,M) $name`, `$name`.
+54. WSS использует `%` (класс), `$` (область), `extends`, `|media|::`.
+55. `extends` — максимум 5 уровней, циклы запрещены.
+56. Приоритет стилей: `$area` < `CELL::$area` < `%class` < путь-селектор < `|media|::` < `"style"` в `|WGET|>>`.
+57. Графики вставляются только через `|WGET|>>{}` в `CELL::`.
+58. Данные для графиков — `@arr`. Мутируй (`.append` / `.clear`).
+59. После изменения данных — вызови `|WGET|>>` для перерисовки.
+60. `color` — hex-строка; `height` — целое число пикселей; `smooth` — флаг.
+61. Мультисерии — массив массивов, цвета автоматически.
 
-### Marker Cheatsheet
+---
 
-**Присвоение (\`::\`):**
+## 30. Marker Cheatsheet
 
-| Маркер | Пример |
-|--------|--------|
-| \`|$|\` | \`|$|::{x@int = 10}\` |
-| \`|$$|\` | \`|$$|::{"debug": true}\` |
-| \`|F5|\` | \`|F5|::{"level": "verbose"}\` |
-| \`|TYP|\` | \`|TYP|::{x TO str}\` |
-| \`|GRID|\` | \`|GRID|::{"cols": 4}\` |
-| \`|CELL|\` | \`|CELL|::{"col": 0, "row": 0}\` |
-| \`|PERM|\` | \`|PERM|::{"default_policy": "deny"}\` |
-| \`|HASH|\` | \`|HASH|::{"algorithm": "bcrypt"}\` |
+### 30.1. Маркеры присвоения (`::`)
 
-**Выполнение (\`>>\`):**
+|    Маркер  |            Пример                      |        Комментарий           |
+|------------|----------------------------------------|------------------------------|
+| `\|$\|`    | `\|$\|::{x@int = 10}`                  | Переменная — ASSIGN / MUTATE |
+| `\|$$\|`   | `\|$$\|::{"debug": true}`              | Системная настройка          |
+| `\|F5\|`   | `\|F5\|::{"level": "verbose"}`         | Отладка (настройка)          |
+| `\|TYP\|`  | `\|TYP\|::{x TO str}`                  | Приведение типа              |
+| `\|GRID\|` | `\|GRID\|::{"cols": 4}`                | Сетка (создание)             |
+| `\|CELL\|` | `\|CELL\|::{"col": 0, "row": 0}`       | Ячейка (создание)            |
+| `\|PERM\|` | `\|PERM\|::{"default_policy": "deny"}` | Настройка прав               |
+| `\|HASH\|` | `\|HASH\|::{"algorithm": "bcrypt"}`    | Настройка хеширования        |
 
-| Маркер | Пример |
-|--------|--------|
-| \`|?|\` | \`|?|>>{"Hello"}\` |
-| \`|!|\` | \`|!|>>{result}\` |
-| \`|+|\` | \`|+|>>{list item}\` |
-| \`|-|\` | \`|-|>>{list item}\` |
-| \`|??|\` | \`|??|>>{"CONNECT"}\` |
-| \`|F5|\` | \`|F5|>>{"x = " + x}\` |
-| \`|TYP|\` | \`|TYP|>>{x}\` |
-| \`|DB|\` | \`|DB|>>{"SELECT ..."}\` |
-| \`|WGET|\` | \`|WGET|>>{"type": "button"}\` |
-| \`|SHOW|\` | \`|SHOW|>>{"Dashboard"}\` |
-| \`|RUN|\` | \`|RUN|>>{"Backup"}\` |
-| \`|CELL|\` | \`|CELL|>>{"text": "8"}\` |
-| \`|PERM|\` | \`|PERM|>>{"allow": ...}\` |
-| \`|HASH|\` | \`|HASH|>>{"admin123"}\` |
-| \`|AUDIT|\` | \`|AUDIT|>>{"action": "CREATE"}\` |
-| \`|IN|\` | \`|IN|>>{"form": "StudentForm"}\` |
-| \`|OUT|\` | \`|OUT|>>{"message": "OK"}\` |
-| \`|LEN|\` | \`|LEN|>>{Subjects.data}\` |
+### 30.2. Маркеры выполнения (`>>`)
 
-**Проверка (\`?>\`):**
+|    Маркер   |              Пример                 |     Комментарий     |
+|-------------|-------------------------------------|---------------------|
+| `\|?\|`     | `\|?\|\|>>{"Hello"}`                | Вывод на экран      |
+| `\|!\|`     | `\|!\|\|>>{result}`                 | Возврат значения    |
+| `\|+\|`     | `\|+\|\|>>{list item}`              | Добавление элемента |
+| `\|-\|`     | `\|-\|\|>>{list item}`              | Удаление элемента   |
+| `\|??\|`    | `\|??\|\|>>{"CONNECT"}`             | Системная команда   |
+| `\|F5\|`    | `\|F5\|\|>>{"x = " + x}`            | Отладка (вывод)     |
+| `\|TYP\|`   | `\|TYP\|\|>>{x}`                    | Получение типа      |
+| `\|DB\|`    | `\|DB\|\|>>{"SELECT ..."}`          | Запрос к БД         |
+| `\|WGET\|`  | `\|WGET\|\|>>{"type": "button"}`    | Вставка виджета     |
+| `\|SHOW\|`  | `\|SHOW\|\|>>{"Dashboard"}`         | Показ виджета       |
+| `\|RUN\|`   | `\|RUN\|\|>>{"Backup"}`             | Запуск процесса     |
+| `\|CELL\|`  | `\|CELL\|\|>>{"text": "8"}`         | Обновление ячейки   |
+| `\|PERM\|`  | `\|PERM\|\|>>{"allow": ...}`        | Управление правами  |
+| `\|HASH\|`  | `\|HASH\|\|>>{"admin123"}`          | Хеширование         |
+| `\|AUDIT\|` | `\|AUDIT\|\|>>{"action": "CREATE"}` | Журналирование      |
+| `\|IN\|`    | `\|IN\|\|>>{"form": "StudentForm"}` | Получение данных    |
+| `\|OUT\|`   | `\|OUT\|\|>>{"message": "OK"}`      | Безопасный вывод    |
+| `\|LEN\|`   | `\|LEN\|\|>>{Subjects.data}`        | Длина коллекции     |
 
-| Маркер | Пример |
-|--------|--------|
-| \`|F5|\` | \`|F5|?>{x > 0}\` |
-| \`|TYP|\` | \`|TYP|?>{x IS int}\` |
-| \`|ASSERT|\` | \`|ASSERT|?>{x > 0}\` |
-| \`|VALID|\` | \`|VALID|?>{grade >= 1}\` |
-| \`|PERM|\` | \`|PERM|?>{resource: "students", action: "CREATE"}\` |
-| \`|CHECK|\` | \`|CHECK|?>{name IS @str}\` |
-| \`|RULE|\` | \`|RULE|?>{age >= 18}\` |
+### 30.3. Маркеры проверки (`?>`)
 
-### Быстрая шпаргалка
+|    Маркер    |                     Пример                           |    Комментарий     |
+|--------------|------------------------------------------------------|--------------------|
+| `\|F5\|`     | `\|F5\|?>{x > 0}`                                    | Отладка (проверка) |
+| `\|TYP\|`    | `\|TYP\|?>{x IS int}`                                | Проверка типа      |
+| `\|ASSERT\|` | `\|ASSERT\|?>{x > 0}`                                | Утверждение        |
+| `\|VALID\|`  | `\|VALID\|?>{grade >= 1}`                            | Валидация значений |
+| `\|PERM\|`   | `\|PERM\|?>{resource: "students", action: "CREATE"}` | Проверка права     |
+| `\|CHECK\|`  | `\|CHECK\|?>{name IS @str AND grade IS @int}`        | Проверка структуры |
+| `\|RULE\|`   | `\|RULE\|?>{age >= 18}`                              | Бизнес-правило     |
 
-| Действие | Маркер | Пример |
-|----------|--------|--------|
-| Создать / изменить | \`|...|::{}\` | \`|$|::{x = 10}\` |
-| Выполнить | \`|...|>>{}\` | \`|?|>>{"Hello"}\` |
-| Проверить | \`|...|?>{}\` | \`|TYP|?>{x IS int}\` |
-| Управлять правами | \`|PERM|>>{}\` | \`|PERM|>>{"allow": "*"}\` |
-| Журналировать | \`|AUDIT|>>{}\` | \`|AUDIT|>>{"action": "CREATE"}\` |
-| Хешировать | \`|HASH|>>{}\` | \`|HASH|>>{"password"}\` |
+### 30.4. Сводная таблица маркеров
 
-### Architecture Layers
+|    Маркер   |             `::{}`                     |            `>>{}`                   |                       `?>`                           | Комментарий |
+|-------------|----------------------------------------|-------------------------------------|------------------------------------------------------|-------------|
+| `\|$\|`     | `\|$\|::{x = 10}`                      | —                                   | —                                                    | STATE — ASSIGN / MUTATE |
+| `\|?\|`     | —                                      | `\|?\|\|>>{"Hello"}`                | —                                                    | ACTION — вывод          |
+| `\|!\|`     | —                                      | `\|!\|\|>>{result}`                 | —                                                    | ACTION — возврат        |
+| `\|+\|`     | —                                      | `\|+\|\|>>{list item}`              | —                                                    | ACTION — добавление     |
+| `\|-\|`     | —                                      | `\|-\|\|>>{list item}`              | —                                                    | ACTION — удаление       |
+| `\|$$\|`    | `\|$$\|::{"debug": true}`              | —                                   | —                                                    | SYSTEM STATE            |
+| `\|??\|`    | — | `\|??\|\|>>{"CONNECT"}`            | —                                   | —                                                    | SYSTEM ACTION           |
+| `\|F5\|`    | `\|F5\|::{"level": "verbose"}`         | `\|F5\|\|>>{"x = " + x}`            | `\|F5\|?>{x > 0}`                                    | DEBUG                   |
+| `\|TYP\|`   | `\|TYP\|::{x TO str}`                  | `\|TYP\|\|>>{x}`                    | `\|TYP\|?>{x IS int}`                                | TEST                    |
+| `\|DB\|`    | —                                      | `\|DB\|\|>>{"SELECT ..."}`          | —                                                    | SYSTEM ACTION           |
+| `\|WGET\|`  | —                                      | `\|WGET\|\|>>{"type": "button"}`    | —                                                    | GUI ACTION              |
+| `\|SHOW\|`  | —                                      | `\|SHOW\|\|>>{"Dashboard"}`         | —                                                    | GUI ACTION              |
+| `\|RUN\|`   | —                                      | `\|RUN\|\|>>{"Backup"}`             | —                                                    | ACTION                  |
+| `\|GRID\|`  | `\|GRID\|::{"cols": 4}`                | —                                   | —                                                    | STATE                   |
+| `\|CELL\|`  | `\|CELL\|::{"col": 0, "row": 0}`       | `\|CELL\|\|>>{"text": "8"}`         | —                                                    | STATE / ACTION          |
+| `\|PERM\|`  | `\|PERM\|::{"default_policy": "deny"}` | `\|PERM\|\|>>{"allow": "*"}`        | `\|PERM\|?>{resource: "students", action: "CREATE"}` | SECURITY                |
+| `\|AUDIT\|` | —                                      | `\|AUDIT\|\|>>{"action": "CREATE"}` | —                                                    | SECURITY                |
+| `\|HASH\|`  | `\|HASH\|::{"algorithm": "bcrypt"}`    | `\|HASH\|\|>>{"password"}`          | —                                                    | SECURITY                |
+| `\|IN\|`    | —                                      | `\|IN\|\|>>{"form": "StudentForm"}` | —                                                    | DATA ACTION             |
+| `\|OUT\|`   | —                                      | `\|OUT\|\|>>{"message": "OK"}`      | —                                                    | DATA ACTION             |
+| `\|LEN\|`   | —                                      | `\|LEN\|\|>>{Subjects.data}`        | —                                                    | DATA ACTION             |
+| `\|CHECK\|` | —                                      | —                                   | `\|CHECK\|?>{name IS @str}`                          | TEST                    |
+| `\|VALID\|` | —                                      | —                                   | `\|VALID\|?>{grade >= 1}`                            | TEST                    |
+| `\|RULE\|`  | —                                      | —                                   | `\|RULE\|?>{age >= 18}`                              | TEST                    |
 
-\`\`\`text
+**Легенда:**
+
+- `::` — создаю / настраиваю (присвоение).
+- `>>` — выполняю / запускаю (действие).
+- `?>` — проверяю / утверждаю (условие).
+
+### 30.5. Быстрая шпаргалка
+
+|         Действие      |        Маркер     |                Пример               |
+|-----------------------|-------------------|-------------------------------------|
+| Создать / изменить    | `\|...\|::{}`     | `\|$\|::{x = 10}`                   |
+| Выполнить / запустить | `\|...\|\|>>{}`   | `\|?\|\|>>{"Hello"}`                |
+| Проверить / условие   | `\|...\|?>\|{}`   | `\|TYP\|?>{x IS int}`               |
+| Управлять правами     | `\|PERM\|\|>>{}`  | `\|PERM\|\|>>{"allow": "*"}`        |
+| Журналировать         | `\|AUDIT\|\|>>{}` | `\|AUDIT\|\|>>{"action": "CREATE"}` |
+| Хешировать            | `\|HASH\|\|>>{}`  | `\|HASH\|\|>>{"password"}`          |
+
+---
+
+## 31. Examples
+
+### 31.1. Полный пример: Calculator
+
+```text
+FUNC::Calculator:
+  {{a@int, b@int, op@str}}
+
+  |$|::{result@int = 0}
+
+  |F5|::{"level": "detailed"}
+  |F5|>>{"Калькулятор: " + a + " " + op + " " + b}
+
+  IF op == "+":
+    |$|::{result = a + b}
+  :IF
+
+  EF op == "-":
+    |$|::{result = a - b}
+  :EF
+
+  EF op == "*":
+    |$|::{result = a * b}
+  :EF
+
+  EF op == "/":
+    TRY:
+      IF b == 0:
+        |!!|>>{"Деление на ноль"}
+      :IF
+      ES:
+        |$|::{result = a / b}
+      :ES
+    :TRY
+
+    EXP error:
+      |?|>>{"⚠️ " + error}
+      |$|::{result = 0}
+    :EXP
+
+    FNL:
+      |?|>>{"✅ Операция завершена"}
+    :FNL
+  :EF
+
+  ES:
+    |?|>>{"⚠️ Неизвестная операция"}
+    |!|>>{"ERROR"}
+  :ES
+
+  |F5|>>{"Результат: " + result}
+  |!|>>{result}
+::FUNC
+
+# Вызов функции
+Calculator(10, 5, "+")   # Результат: 15
+```
+
+### 31.2. SafeDivide
+
+```text
+FUNC::SafeDivide:
+  {{a@int, b@int}}
+
+  |$|::{result@int = 0}
+
+  TRY:
+    IF b == 0:
+      |!!|>>{"Деление на ноль"}
+    :IF
+    ES:
+      |$|::{result = a / b}
+    :ES
+  :TRY
+
+  EXP error:
+    |?|>>{"⚠️ Ошибка: " + error}
+    |$|::{result = 0}
+  :EXP
+
+  FNL:
+    |?|>>{"✅ Операция завершена"}
+  :FNL
+
+  |!|>>{result}
+::FUNC
+```
+
+### 31.3. ProcessNumbers — STOP и NEXT
+
+```text
+FUNC::ProcessNumbers:
+  {{numbers@arr}}
+
+  |$|::{result@arr = []}
+
+  FOR num in numbers:
+    # Пропускаем нули
+    IF num == 0:
+      NEXT
+    :IF
+
+    # Выходим при отрицательном
+    IF num < 0:
+      STOP
+    :IF
+
+    # Добавляем положительные
+    |$|::{result.append(num)}   # ← MUTATE
+  :FOR
+
+  |!|>>{result}
+::FUNC
+```
+
+### 31.4. ComplexValidator — глубокая вложенность
+
+```text
+FUNC::ComplexValidator:
+  {{data@arr, config@obj}}
+
+  |$|::{result@obj = {"status": "pending", "errors": [], "warnings": []}}
+  |$|::{index@int = 0}
+  |$|::{total@int = |LEN|>>{data}}
+
+  |F5|::{"level": "detailed"}
+  |F5|>>{"Запуск ComplexValidator для " + total + " записей"}
+
+  WHILE index < total:
+    |$|::{item@obj = data[index]}
+    |F5|>>{"  Обработка записи " + index + ": " + item}
+
+    SWITCH |TYP|>>{item}:
+      CASE "obj":
+        IF |TYP|?>{item.id IS int}:
+          |F5|>>{"    ID корректен: " + item.id}
+        :IF
+
+        EF |TYP|?>{item.id IS str}:
+          |F5|>>{"    ID строка, требуется конвертация"}
+          |TYP|::{item.id TO int}
+        :EF
+
+        ES:
+          |$|::{result.errors.append("Запись " + index + ": отсутствует ID")}
+          |F5|>>{"    ❌ Ошибка: нет ID"}
+        :ES
+
+        FOR field in config.required_fields:
+          |F5|>>{"      Проверка поля: " + field}
+
+          IF |TYP|?>{item[field] IS null}:
+            |$|::{result.errors.append("Поле '" + field + "' отсутствует в записи " + index)}
+            |F5|>>{"        ❌ Поле отсутствует"}
+          :IF
+
+          IF |TYP|?>{item[field] ! IS null}:
+            SWITCH |TYP|>>{item[field]}:
+              CASE "int":
+                IF item[field] < 0:
+                  |$|::{result.warnings.append("Поле '" + field + "' имеет отрицательное значение: " + item[field])}
+                  |F5|>>{"          ⚠️ Отрицательное значение"}
+                :IF
+              :CASE
+
+              CASE "str":
+                IF |LEN|>>{item[field]} == 0:
+                  |$|::{result.warnings.append("Поле '" + field + "' пустое")}
+                  |F5|>>{"          ⚠️ Пустая строка"}
+                :IF
+              :CASE
+
+              CASE "arr":
+                |F5|>>{"          Массив из " + |LEN|>>{item[field]} + " элементов"}
+              :CASE
+
+              ES:
+                |F5|>>{"          Тип " + |TYP|>>{item[field]} + " пропущен"}
+              :ES
+            :SWITCH
+          :IF
+        :FOR
+
+        IF |TYP|?>{item.nested IS obj}:
+          |$|::{nested_keys@arr = |KEYS|>>{item.nested}}
+          FOR key in nested_keys:
+            |F5|>>{"      Вложенный ключ: " + key}
+          :FOR
+        :IF
+      :CASE
+
+      CASE "arr":
+        |F5|>>{"    Массив, пропускаем"}
+      :CASE
+
+      ES:
+        |$|::{result.warnings.append("Запись " + index + ": неизвестный тип " + |TYP|>>{item})}
+        |F5|>>{"    ⚠️ Неизвестный тип: " + |TYP|>>{item}}
+      :ES
+    :SWITCH
+
+    |$|::{index = index + 1}
+    |F5|>>{"  Переход к следующей записи"}
+  :WHILE
+
+  IF |LEN|>>{result.errors} == 0:
+    |$|::{result.status = "success"}
+    |F5|>>{"✅ Валидация завершена успешно"}
+  :IF
+
+  ES:
+    |$|::{result.status = "failed"}
+    |F5|>>{"❌ Валидация завершена с ошибками"}
+  :ES
+
+  |!|>>{result}
+::FUNC
+```
+
+### 31.5. SchoolCRM — фрагмент
+
+```text
+CRM::TrainingCenter:
+
+    SECURITY::
+
+        SYS::Authentication:
+            |$$|::{"login_field": "email"}
+            |$$|::{"password_field": "password"}
+            |$$|::{"session_timeout": 3600}
+            |$$|::{"encryption": "bcrypt"}
+        ::SYS
+
+        SYS::Roles:
+            SYS::RoleAdmin:
+                |PERM|>>{"allow": "*"}
+            ::SYS
+            SYS::RoleManager:
+                |PERM|>>{"allow": {"resource": "clients", "action": "READ"}}
+                |PERM|>>{"allow": {"resource": "clients", "action": "WRITE"}}
+                |PERM|>>{"allow": {"resource": "students", "action": "READ"}}
+                |PERM|>>{"allow": {"resource": "students", "action": "WRITE"}}
+                |PERM|>>{"deny": {"resource": "finance", "action": "WRITE"}}
+            ::SYS
+            SYS::RoleTeacher:
+                |PERM|>>{"allow": {"resource": "students", "action": "READ"}}
+                |PERM|>>{"allow": {"resource": "students", "action": "WRITE"}}
+                |PERM|>>{"deny": {"resource": "finance", "action": "*"}}
+            ::SYS
+        ::SYS
+
+        SYS::Users:
+            SYS::UserAdmin:
+                |$|::{user@obj = {"login": "admin", "role": "Admin", "password_hash": |HASH|>>{"admin123"}}}
+                |AUTH|>>{"add_user": user}
+            ::SYS
+            SYS::UserManager:
+                |$|::{user@obj = {"login": "manager", "role": "Manager", "branch": "Tashkent", "password_hash": |HASH|>>{"manager123"}}}
+                |AUTH|>>{"add_user": user}
+            ::SYS
+        ::SYS
+
+        SYS::Audit:
+            |$$|::{"audit_enabled": true}
+            |$$|::{"audit_storage": "database"}
+            |$$|::{"audit_retention_days": 90}
+            |$|::{events@arr = ["LOGIN", "LOGOUT", "CREATE", "UPDATE", "DELETE", "PERMISSION_DENIED"]}
+            |AUDIT|>>{"register_events": events}
+        ::SYS
+
+    ::SECURITY
+
+    DATA::
+
+        DATASET::Students:
+            |$$|::{"source": "DB"}
+            |$$|::{"table": "students"}
+            |$|::{fields@arr = ["id", "name", "age", "branch", "monthly_payment"]}
+            |DB|>>{"CONNECT TO " + source}
+            |DB|>>{"SELECT " + fields + " FROM " + table}
+            |$|::{data@arr = |DB|>>{result}}
+            |!|>>{data}
+        ::DATASET
+
+    ::DATA
+
+    BUSINESS::
+
+        KPI::Revenue:
+            |$|::{value@mon = SUM(Clients.data.balance)}
+            |$|::{target@mon = 1000000}
+            |$|::{progress@prc = value / target * 100}
+            |$|::{result@obj = {
+                "value": value,
+                "target": target,
+                "progress": progress,
+                "unit": "UZS",
+                "period": "MONTH"
+            }}
+            |!|>>{result}
+        ::KPI
+
+        FUNC::CreateClient:
+            |IN|>>{"form": "ClientForm"}
+            |CHECK|?>{name IS @str AND age IS @int}
+            |VALID|?>{age >= 18}
+            |PERM|?>{resource: "clients", action: "CREATE"}
+            |RULE|?>{age >= 18}
+            |DB|>>{"INSERT": "clients", "params": [name, phone, email, age, balance]}
+            |AUDIT|>>{"action": "CREATE", "resource": "client", "result": "SUCCESS"}
+            |OUT|>>{"message": "Клиент создан", "id": new_id}
+            |!|>>{result}
+        ::FUNC
+
+    ::BUSINESS
+
+    GUI::
+
+        FORM::ClientForm:
+            |$|::{fields@obj = {
+                "name": {"type": "@str", "widget": "textinput"},
+                "phone": {"type": "@str", "widget": "textinput"},
+                "email": {"type": "@email", "widget": "emailinput"},
+                "age": {"type": "@int", "widget": "numberinput"},
+                "balance": {"type": "@mon", "widget": "moneyinput"}
+            }}
+            SUBMIT: CreateClient
+        ::FORM
+
+        WIDGET::Dashboard:
+            GRID::MainGrid:
+                |$$|::{"cols": 2, "rows": 3}
+                |$$|::{"style": "DashboardTheme"}
+
+                CELL::(0,0):
+                    |WGET|>>{"type": "metric", "label": "💰 Выручка", "value": KPI.Revenue.result.value}
+                ::CELL
+
+                CELL::(1,0):
+                    |WGET|>>{"type": "metric", "label": "👨‍🎓 Студенты", "value": KPI.Students.result.value}
+                ::CELL
+
+                CELL::(0,1):
+                    |WGET|>>{"type": "container", "class": "%card", "colspan": 2}
+                    |WGET|>>{"type": "text", "text": "📊 Прогресс целей", "class": "%subheader"}
+                    |WGET|>>{"type": "progress", "value": KPI.Revenue.result.progress, "label": "Выручка"}
+                    |WGET|>>{"type": "progress", "value": KPI.Students.result.progress, "label": "Студенты"}
+                ::CELL
+
+                CELL::(0,2):
+                    |WGET|>>{"type": "table", "table": "ClientsTable", "colspan": 2}
+                ::CELL
+
+            ::GRID
+        ::WIDGET
+
+    ::GUI
+
+    EVENTS::
+
+        EVENT::client_created:
+            |AUDIT|>>{"action": "CLIENT_CREATED"}
+            |SHOW|>>{"Dashboard"}
+            |ALERT|>>{"message": "Новый клиент создан!", "type": "success"}
+        ::EVENT
+
+    ::EVENTS
+
+::CRM
+```
+
+### 31.6. TraderDashboard — фрагмент
+
+```text
+SYS::State:
+  |$|::{capital@mon = 100000000.00 UZS}
+  |$|::{usd_balance@mon = 0.00 USD}
+  |$|::{usd_rate@flt = 12650.00}
+  |$|::{trades@arr = []}
+  |$|::{trade_count@int = 0}
+  |$|::{rate_history@arr = [12650.00]}
+::SYS
+
+FUNC::ChangeRate:
+  {{delta_pct@flt}}
+  |$|::{new_rate@flt = State.usd_rate * (1 + delta_pct / 100)}
+  |$|::{State.usd_rate = new_rate}
+  |$|::{State.rate_history.append(new_rate)}
+  |?|>>{"Курс USD: " + new_rate + " UZS"}
+::FUNC
+
+WIDGET::TraderDashboard:
+  GRID::MainGrid:
+    |$$|::{"cols": 3, "rows": 5}
+
+    CELL::(0,0):
+      |WGET|>>{"type": "text", "text": "💱 ВАЛЮТНЫЙ ТРЕЙДЕР"}
+    ::CELL
+
+    CELL::(0,1):
+      |WGET|>>{"type": "metric", "label": "💰 Капитал", "value": |AMOUNT|>>{State.capital}, "unit": "UZS"}
+    ::CELL
+
+    CELL::(1,1):
+      |WGET|>>{"type": "metric", "label": "💵 Портфель", "value": |AMOUNT|>>{State.usd_balance}, "unit": "USD"}
+    ::CELL
+
+    CELL::(2,1):
+      |WGET|>>{"type": "metric", "label": "📊 Текущий курс", "value": State.usd_rate, "unit": "UZS"}
+    ::CELL
+
+    CELL::(0,2):
+      |WGET|>>{"type": "button", "text": "🛒 КУПИТЬ 100", "action": "QuickBuy100"}
+    ::CELL
+
+    CELL::(1,2):
+      |WGET|>>{"type": "button", "text": "💸 ПРОДАТЬ 100", "action": "QuickSell100"}
+    ::CELL
+
+    CELL::(2,2):
+      |WGET|>>{"type": "button", "text": "🔄 СБРОСИТЬ", "action": "ResetTrader()"}
+    ::CELL
+
+    CELL::(0,3):
+      |WGET|>>{"type": "button", "text": "📉 Курс −1%", "action": "RateDown"}
+    ::CELL
+
+    CELL::(1,3):
+      |WGET|>>{"type": "button", "text": "📈 Курс +1%", "action": "RateUp"}
+    ::CELL
+
+    CELL::(2,3):
+      |WGET|>>{"type": "button", "text": "📈📈 Курс +5%", "action": "RateUpBig"}
+    ::CELL
+
+    CELL::(0,4):
+      |WGET|>>{"type": "areachart", "data": State.rate_history, "color": "#ff6b7a", "label": "Курс"}
+    ::CELL
+
+  ::GRID
+
+  |WGET|>>{"type": "text", "text": "📋 ЖУРНАЛ СДЕЛОК"}
+  |WGET|>>{"type": "table", "table": "TradesTable"}
+::WIDGET
+
+EVENT::QuickBuy100:
+  MakeTrade("BUY", 100.00 USD, State.usd_rate)
+  |WGET|>>{"id": "content_area", "widget": "TraderDashboard"}
+::EVENT
+
+EVENT::QuickSell100:
+  MakeTrade("SELL", 100.00 USD, State.usd_rate)
+  |WGET|>>{"id": "content_area", "widget": "TraderDashboard"}
+::EVENT
+
+EVENT::RateUp:
+  ChangeRate(1.0)
+  |WGET|>>{"id": "content_area", "widget": "TraderDashboard"}
+::EVENT
+
+EVENT::RateDown:
+  ChangeRate(-1.0)
+  |WGET|>>{"id": "content_area", "widget": "TraderDashboard"}
+::EVENT
+
+EVENT::RateUpBig:
+  ChangeRate(5.0)
+  |WGET|>>{"id": "content_area", "widget": "TraderDashboard"}
+::EVENT
+
+MAIN::start:
+  |SHOW|>>{"TraderDashboard"}
+
+  ChangeRate(2.0)
+  ChangeRate(-1.5)
+  ChangeRate(3.0)
+  ChangeRate(-0.5)
+  ChangeRate(1.5)
+
+  |WGET|>>{"id": "content_area", "widget": "TraderDashboard"}
+::MAIN
+```
+
+---
+
+## 32. Architecture Layers
+
+### 32.1. Слои WriScroll
+
+```text
 ┌─────────────────────────────────────────┐
 │              PRESENTATION               │
 │     WIDGET GRID CELL WGET WSS           │
@@ -4558,37 +5082,45 @@ CELL::(0,4):
 │                 CORE                    │
 │ types vars functions IF FOR WHILE ...   │
 └─────────────────────────────────────────┘
-\`\`\`
+```
 
-**Слои обучения:**
+Маркеры проходят через все эти слои.
 
-- Слой 1 — состояние (\`::\`).
-- Слой 2 — действие (\`>>\`).
-- Слой 3 — проверка (\`?>\`).
+### 32.2. Слои обучения
 
-**Конвейер безопасности:**
+Три кита позволяют изучать язык **слоями**:
 
-\`\`\`text
+**Слой 1 — состояние (`::`).** Человек описывает данные: `|$|::{price@mon = 100.00 USD}`. Этого достаточно, чтобы описать, **что есть**.
+
+**Слой 2 — действие (`>>`).** Человек описывает, что происходит: `|?|>>{"Hello"}`, `|DB|>>{"SELECT ..."}`. Этого достаточно, чтобы **что-то произошло**.
+
+**Слой 3 — проверка (`?>`).** Человек описывает, что проверяется: `|VALID|?>{price > 0}`, `|PERM|?>{resource: "students", action: "CREATE"}`. Этого достаточно, чтобы **защитить** программу.
+
+Каждый слой даёт результат.
+
+### 32.3. Конвейер безопасности
+
+```text
 UNTRUSTED INPUT
       ↓
-    |IN|>>
+    |IN|>>          получение входных данных
       ↓
-  |CHECK|?>
+  |CHECK|?>         проверка структуры и типов
       ↓
-  |VALID|?>
+  |VALID|?>         бизнес-валидация значения
       ↓
-  |PERM|?>
+  |PERM|?>          проверка права текущего пользователя
       ↓
-   |RULE|?>
+   |RULE|?>         бизнес-правило
       ↓
-    |DB|>>
+    |DB|>>          запись / изменение данных
       ↓
-  |AUDIT|>>
+  |AUDIT|>>         журналирование результата
       ↓
-   |OUT|>>
+   |OUT|>>          безопасный результат
       ↓
-     |!|>>
-\`\`\`
+     |!|>>          возврат значения функции
+```
 
 ---
 
