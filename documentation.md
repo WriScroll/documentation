@@ -6,14 +6,6 @@
 // Лицензия: MIT
 //
 // Этот файл — сводная документация для интерпретатора WriScroll.
-// Полные версии частей — в отдельных файлах:
-//
-//   docs/ru/core (ru).md          — Part I. Core
-//   docs/ru/security (ru).md      — Part II. Security
-//   docs/ru/gui (ru).md           — Part III. GUI
-//   docs/ru/data (ru).md          — Part IV. Data
-//   docs/ru/normative (ru).md     — Part V. Normative
-//   docs/ru/reference (ru).md     — Part VI. Reference
 //
 // Английские версии — в docs/en/.
 
@@ -28,33 +20,13 @@ export const WRISCROLL_DOCUMENTATION = `
 
 ---
 
-## Содержание
 
-- [Часть I. Core](#часть-i-core)
-- [Часть II. Security](#часть-ii-security)
-- [Часть III. GUI](#часть-iii-gui)
-- [Часть IV. Data](#часть-iv-data)
-- [Часть V. Normative](#часть-v-normative)
-- [Часть VI. Reference](#часть-vi-reference)
-
-Полные версии частей — в отдельных файлах:
-
-- \`docs/ru/core (ru).md\`
-- \`docs/ru/security (ru).md\`
-- \`docs/ru/gui (ru).md\`
-- \`docs/ru/data (ru).md\`
-- \`docs/ru/normative (ru).md\`
-- \`docs/ru/reference (ru).md\`
-
-Английские версии — в \`docs/en/\`.
-
----
 
 ## 1. Overview
 
 ### 1.1. Что такое WriScroll
 
-WriScroll — маркерно-ориентированный язык программирования. Каждая инструкция начинается с маркера, который определяет её категорию: состояние (`::`), действие (`>>`) или проверка (`?>`).
+WriScroll — маркерный DSL (mDSL — Marker Domain-Specific Language). Каждая инструкция начинается с маркера, который определяет её категорию: состояние (`::`), действие (`>>`) или проверка (`?>`).
 
 Маркер стоит в начале строки. Он виден сразу. Он не требует контекста.
 
@@ -687,13 +659,13 @@ FUNC::DebugDemo:
 
 ---
 
-## Часть II. Security
+## 9. Security Architecture
 
-### SECURITY
+### 9.1. Что такое SECURITY
 
-\`SECURITY::\` — обязательный блок в CRM-приложении. Без \`SECURITY\` приложение не запускается.
+`SECURITY::` — обязательный блок в CRM-приложении. Без `SECURITY` приложение не запускается.
 
-\`\`\`text
+```text
 SECURITY::Application:
 
     SYS::Authentication:
@@ -717,59 +689,269 @@ SECURITY::Application:
     ::SYS
 
 ::SECURITY
-\`\`\`
+```
 
-### Capabilities
+### 9.2. Capabilities
 
-| Маркер | Capability |
-|--------|-----------|
-| \`|DB|>>\` | \`database.query\` |
-| \`|FILE|>>\` | \`filesystem.read/write\` |
-| \`|HTTP|>>\` | \`network.http\` |
-| \`|PROC|>>\` | \`process.execute\` |
-| \`|SYS|>>\` | \`system.admin\` |
-| \`|PERM|>>\` | \`security.manage\` |
-| \`|AUDIT|>>\` | \`security.audit\` |
+Каждый системный маркер требует определённых прав (capabilities). Без capability системный вызов не выполняется.
+
+|    Маркер     |       Capability        |
+|---------------|-------------------------|
+| `\|DB\|>>`    | `database.query`        |
+| `\|FILE\|>>`  | `filesystem.read/write` |
+| `\|HTTP\|>>`  | `network.http`          |
+| `\|PROC\|>>`  | `process.execute`       |
+| `\|SYS\|>>`   | `system.admin`          |
+| `\|PERM\|>>`  | `security.manage`       |
+| `\|AUDIT\|>>` | `security.audit`        |
 
 Это архитектура **«Тюрьма»** (Security Architecture).
 
-### Уровни безопасности
+### 9.3. Уровни безопасности
 
-1. **ВНЕШНЯЯ СТЕНА** — проверка входящих данных (\`|VALID|?>\`).
-2. **НАДСТРОЙКА** — аутентификация и авторизация (\`|AUTH|>>\`).
-3. **ПЕСОЧНИЦА** — изоляция выполнения (\`|$$|::{"sandbox": true}\`).
-4. **ЯДРО** — выполнение базового кода (\`|$|\`, \`|?|\`, \`|!|\`).
+1. **ВНЕШНЯЯ СТЕНА** — проверка входящих данных (`|VALID|?>`).
+2. **НАДСТРОЙКА** — аутентификация и авторизация (`|AUTH|>>`).
+3. **ПЕСОЧНИЦА** — изоляция выполнения (`|$$|::{"sandbox": true}`).
+4. **ЯДРО** — выполнение базового кода (`|$|`, `|?|`, `|!|`).
 
-### Принципы
+### 9.4. Принципы
 
-- \`DATA ≠ CODE\` — данные не исполняются как код.
-- \`GUI ≠ SECURITY\` — интерфейс не является границей безопасности.
-- \`FILTER ≠ VALIDATION\` — фильтрация не заменяет валидацию.
-- \`PERMISSION ≠ VISIBILITY\` — право не равно видимости.
+- `DATA ≠ CODE` — данные не исполняются как код.
+- `GUI ≠ SECURITY` — интерфейс не является границей безопасности.
+- `FILTER ≠ VALIDATION` — фильтрация не заменяет валидацию.
+- `PERMISSION ≠ VISIBILITY` — право не равно видимости.
 
-### PERM
+---
 
-Три режима:
+## 10. Roles and Permissions
 
-| Маркер | Назначение | Пример |
-|--------|-----------|--------|
-| \`|PERM|::{}\` | Настройка политики | \`|PERM|::{"default_policy": "deny"}\` |
-| \`|PERM|>>{}\` | Выдача прав | \`|PERM|>>{"allow": {"resource": "students", "action": "READ"}}\` |
-| \`|PERM|?>{}\` | Проверка права | \`|PERM|?>{resource: "students", action: "CREATE"}\` |
+### 10.1. Три режима PERM
 
-**Действия:** \`READ\`, \`CREATE\`, \`UPDATE\`, \`DELETE\`, \`WRITE\`.
+`|PERM|` используется в трёх режимах:
 
-**Правило:** \`WRITE = CREATE + UPDATE\`.
+|     Маркер     |      Назначение    |                            Пример                                 |
+|----------------|--------------------|-------------------------------------------------------------------|
+| `\|PERM\|::{}` | Настройка политики | `\|PERM\|::{"default_policy": "deny"}`                            |
+| `\|PERM\|>>{}` | Выдача прав        | `\|PERM\|>>{"allow": {"resource": "students", "action": "READ"}}` |
+| `\|PERM\|?>{}` | Проверка права     | `\|PERM\|?>{resource: "students", action: "CREATE"}`              |
 
-### Scope
+### 10.2. Действия
+
+| Действие |          Описание            |
+|----------|------------------------------|
+| `READ`   | Чтение                       |
+| `CREATE` | Создание                     |
+| `UPDATE` | Изменение                    |
+| `DELETE` | Удаление                     |
+| `WRITE`  | Составное: `CREATE + UPDATE` |
+
+**Правило:** `WRITE = CREATE + UPDATE`.
+
+При операции создания записи runtime рассматривает `WRITE` как `CREATE`. При изменении существующей записи — как `UPDATE`.
+
+### 10.3. Пример: роли SchoolCRM
+
+```text
+SYS::Roles:
+
+    SYS::RoleAdmin:
+        |PERM|>>{"allow": "*"}
+    ::SYS
+
+    SYS::RoleDirector:
+        |PERM|>>{"allow": {"resource": "students", "action": "READ"}}
+        |PERM|>>{"allow": {"resource": "students", "action": "WRITE"}}
+        |PERM|>>{"allow": {"resource": "teachers", "action": "READ"}}
+        |PERM|>>{"allow": {"resource": "teachers", "action": "WRITE"}}
+        |PERM|>>{"allow": {"resource": "subjects", "action": "READ"}}
+        |PERM|>>{"allow": {"resource": "subjects", "action": "WRITE"}}
+        |PERM|>>{"allow": {"resource": "payments", "action": "READ"}}
+        |PERM|>>{"deny": {"resource": "system", "action": "*"}}
+        |PERM|>>{"deny": {"resource": "payments", "action": "DELETE"}}
+    ::SYS
+
+    SYS::RoleAccountant:
+        |PERM|>>{"allow": {"resource": "payments", "action": "READ"}}
+        |PERM|>>{"allow": {"resource": "payments", "action": "WRITE"}}
+        |PERM|>>{"allow": {"resource": "students", "action": "READ"}}
+        |PERM|>>{"allow": {"resource": "students", "action": "WRITE"}}
+        |PERM|>>{"allow": {"resource": "subjects", "action": "READ"}}
+        |PERM|>>{"deny": {"resource": "teachers", "action": "WRITE"}}
+        |PERM|>>{"deny": {"resource": "system", "action": "*"}}
+    ::SYS
+
+    SYS::RoleTeacher:
+        |PERM|>>{"allow": {"resource": "students", "action": "READ", "scope": "teacher_students"}}
+        |PERM|>>{"allow": {"resource": "students", "action": "WRITE", "scope": "teacher_students"}}
+        |PERM|>>{"allow": {"resource": "subjects", "action": "READ"}}
+        |PERM|>>{"allow": {"resource": "payments", "action": "READ"}}
+        |PERM|>>{"allow": {"resource": "grades", "action": "CREATE", "scope": "teacher_grades"}}
+        |PERM|>>{"deny": {"resource": "payments", "action": "WRITE"}}
+        |PERM|>>{"deny": {"resource": "teachers", "action": "WRITE"}}
+        |PERM|>>{"deny": {"resource": "system", "action": "*"}}
+    ::SYS
+
+    SYS::RoleStudent:
+        |PERM|>>{"allow": {"resource": "students", "action": "READ", "scope": "self_students"}}
+        |PERM|>>{"allow": {"resource": "payments", "action": "READ", "scope": "self_payments"}}
+        |PERM|>>{"allow": {"resource": "subjects", "action": "READ"}}
+        |PERM|>>{"deny": {"resource": "*", "action": "WRITE"}}
+        |PERM|>>{"deny": {"resource": "system", "action": "*"}}
+    ::SYS
+
+::SYS
+```
+
+### 10.4. Аутентификация
+
+```text
+SYS::Authentication:
+    |$$|::{"login_field": "email"}
+    |$$|::{"password_field": "password"}
+    |$$|::{"session_timeout": 3600}
+    |$$|::{"encryption": "bcrypt"}
+::SYS
+```
+
+### 10.5. Пользователи
+
+```text
+SYS::Users:
+
+    SYS::UserAdmin:
+        |$|::{user@obj = {
+            "login": "admin",
+            "role": "Admin",
+            "password_hash": |HASH|>>{"admin123"}
+        }}
+        |AUTH|>>{"add_user": user}
+    ::SYS
+
+::SYS
+```
+
+### 10.6. Хеширование
+
+```text
+|HASH|::{"algorithm": "bcrypt", "rounds": 10}
+
+|$|::{hash@str = |HASH|>>{"password"}}
+|$|::{hash@str = |HASH|>>{"password", "salt": "random_salt"}}
+```
+
+---
+
+## 11. Scope
+
+### 11.1. Что такое Scope
 
 Scope ограничивает **не только интерфейс**, но и **фактически доступные данные**.
 
-\`|$$|::{"apply_scope": true}\` указывает runtime, что \`DATASET\` должен применять scope до передачи данных в GUI.
+`|$$|::{"apply_scope": true}` указывает runtime, что `DATASET` должен применять scope до передачи данных в GUI.
+
+### 11.2. Определение Scope
+
+```text
+SYS::ScopeSelf:
+    |$|::{scope@obj = {
+        "name": "self_students",
+        "resource": "students",
+        "action": "READ",
+        "condition": "id == CURRENT_USER.student_id"
+    }}
+    |VALID|?>{scope.condition IS valid}
+::SYS
+
+SYS::ScopeTeacherStudents:
+    |$|::{scope@obj = {
+        "name": "teacher_students",
+        "resource": "students",
+        "action": "READ",
+        "condition": "student.id IN StudentSubjects.student_id WHERE StudentSubjects.subject_id == CURRENT_USER.subject_id"
+    }}
+    |VALID|?>{scope.condition IS valid}
+::SYS
+
+SYS::ScopeTeacherGrades:
+    |$|::{scope@obj = {
+        "name": "teacher_grades",
+        "resource": "grades",
+        "action": "CREATE",
+        "condition": "grades.subject_id == CURRENT_USER.subject_id AND grades.student_id принадлежит StudentSubjects"
+    }}
+    |VALID|?>{scope.condition IS valid}
+::SYS
+
+SYS::ScopeSelfPayments:
+    |$|::{scope@obj = {
+        "name": "self_payments",
+        "resource": "payments",
+        "action": "READ",
+        "condition": "student_id == CURRENT_USER.student_id"
+    }}
+    |VALID|?>{scope.condition IS valid}
+::SYS
+```
+
+### 11.3. Именование Scope
+
+Имя Scope должно быть **уникальным** в пределах приложения.
+
+Нельзя определять два разных Scope с одинаковым `name`, если они относятся к разным ресурсам или имеют разную семантику.
+
+**Reference SchoolCRM использует:**
+
+- `teacher_students`
+- `teacher_grades`
+- `self_students`
+- `self_payments`
+
+### 11.4. StudentSubjects — many-to-many связь
+
+Учитель не должен получать `subject_id` непосредственно из записи ученика, если один ученик может изучать несколько предметов.
+
+Связь `Teacher → Subject → Student` реализуется через таблицу связи:
+
+```text
+StudentSubjects = [
+    {"student_id": 1, "subject_id": 1},
+    {"student_id": 1, "subject_id": 2}
+]
+```
+
+**Нормативный смысл:**
+
+```text
+teacher_students:
+    student.id IN StudentSubjects.student_id
+    WHERE StudentSubjects.subject_id == CURRENT_USER.subject_id
+```
+
+**Принцип:**
+
+```text
+Student
+   ↑
+StudentSubjects
+   ↑
+Subject
+   ↑
+Teacher
+```
+
+Этот шаблон может использоваться для:
+
+- `User ↔ Group`
+- `Student ↔ Course`
+- `Employee ↔ Department`
+- `Product ↔ Category`
+- `User ↔ Project`
+
+### 11.5. APPLY_SCOPE — порядок применения
 
 **Правильный порядок:**
 
-\`\`\`text
+```text
 SOURCE
   ↓
 PERMISSION / SCOPE CONTEXT
@@ -779,11 +961,11 @@ SCOPE FILTER
 DATASET.data
   ↓
 GUI
-\`\`\`
+```
 
 **Неправильно:**
 
-\`\`\`text
+```text
 SOURCE
   ↓
 DATASET.data
@@ -791,19 +973,33 @@ DATASET.data
 GUI
   ↓
 визуальное скрытие
-\`\`\`
+```
 
 Скрытие строк или кнопок в GUI **не является** механизмом безопасности.
 
-**StudentSubjects** — reference-паттерн many-to-many связи.
+### 11.6. Scope и CREATE
 
-**Именование Scope:** уникально в пределах приложения.
+Scope не должен использоваться только как фильтр отображения.
 
-**Примеры:** \`teacher_students\`, \`teacher_grades\`, \`self_students\`, \`self_payments\`.
+При `CREATE` runtime должен проверить, что создаваемая запись удовлетворяет scope текущего пользователя.
 
-### Audit
+**Например, для `grades + CREATE + teacher_grades`:**
 
-\`\`\`text
+```text
+new_grade.subject_id == CURRENT_USER.subject_id
+AND
+new_grade.student_id → StudentSubjects → CURRENT_USER.subject_id
+```
+
+Таким образом, нельзя создать запись, которая не попадает в разрешённую область пользователя, даже если GUI был изменён или запрос сформирован вручную.
+
+---
+
+## 12. Audit
+
+### 12.1. Настройка аудита
+
+```text
 SYS::Audit:
     |$$|::{"audit_enabled": true}
     |$$|::{"audit_storage": "database"}
@@ -823,78 +1019,891 @@ SYS::Audit:
     ]}
     |AUDIT|>>{"register_events": events}
 ::SYS
-\`\`\`
+```
 
-### Security Pipeline
+### 12.2. Запись события
 
-\`\`\`text
+```text
+|AUDIT|>>{
+    "action": "CREATE_STUDENT",
+    "resource": "student",
+    "id": new_id,
+    "result": "SUCCESS"
+}
+```
+
+Audit фиксирует как успешные, так и отказанные критические операции.
+
+### 12.3. Рекомендуемые события
+
+- `LOGIN`
+- `LOGOUT`
+- `CREATE`
+- `UPDATE`
+- `DELETE`
+- `EXPORT`
+- `PERMISSION_DENIED`
+- `STEP_UP_SUCCESS`
+- `STEP_UP_FAILED`
+
+---
+
+## 13. Security Pipeline
+
+### 13.1. Канонический конвейер
+
+Безопасная CRUD-операция проходит через последовательность категорий:
+
+```text
 UNTRUSTED INPUT
       ↓
-    |IN|>>          получение входных данных
+    |IN|>>          получение входных данных (из FORM / API / FILE)
       ↓
   |CHECK|?>         проверка структуры и типов
       ↓
   |VALID|?>         бизнес-валидация значения
       ↓
-  |PERM|?>          проверка права
+  |PERM|?>          проверка права текущего пользователя
       ↓
-   |RULE|?>         бизнес-правило
+   |RULE|?>         бизнес-правило (дополнительная проверка)
       ↓
-    |DB|>>          запись / изменение
+    |DB|>>          запись / изменение данных
       ↓
-  |AUDIT|>>         журналирование
+  |AUDIT|>>         журналирование результата
       ↓
    |OUT|>>          безопасный результат
       ↓
-     |!|>>          возврат значения функции
-\`\`\`
+     |!|>>          возврат значения функции (если требуется)
+```
 
-### Consistency Rule
+### 13.2. Канонический пример
 
-Если \`PERM\`, \`SCOPE\`, \`CHECK\`, \`VALID\` или обязательный \`RULE\` не пройдены, \`DB\`-операция **не выполняется**.
+```text
+FUNC::AddStudent:
+    |IN|>>{"form": "StudentForm"}
+    |CHECK|?>{name IS @str AND grade IS @int AND parent_phone IS @str}
+    |VALID|?>{grade >= 1 AND grade <= 11}
+    |PERM|?>{resource: "students", action: "CREATE"}
+    |$|::{new_id@int = AutoID()}
+    |$|::{new_student@obj = {
+        "id": new_id,
+        "name": name,
+        "grade": grade,
+        "parent_phone": parent_phone
+    }}
+    |DB|>>{"INSERT": SchoolData.students, "values": new_student}
+    |AUDIT|>>{"action": "CREATE_STUDENT", "resource": "student", "id": new_id, "result": "SUCCESS"}
+    |OUT|>>{"message": "Ученик добавлен", "id": new_id}
+    |!|>>{new_student}
+::FUNC
+```
 
----
+### 13.3. |IN| — получение входных данных
 
-## Часть III. GUI
+```text
+|IN|>>{}        # Получение данных из входного источника.
+|IN|>>{"form": "StudentForm"}
+```
 
-### Структура
+**Формально:** `|IN|` принимает источник данных и переносит значения в локальный контекст операции. Значения **не становятся кодом**.
 
-| Сущность | Что | Уровень |
-|----------|-----|---------|
-| \`GRID::\` | Сетка | Верхний |
-| \`CELL::\` | Ячейка сетки | Внутри \`GRID::\` |
-| \`TRELLIS::\` | Позиция внутри ячейки | Внутри \`CELL::\` |
-| \`ITEM::\` | Позиция внутри trellis | Внутри \`TRELLIS::\` |
-| \`|WGET|>>\` | Вставка виджета | Внутри \`TRELLIS::\` / \`ITEM::\` |
-| \`|SHOW|>>\` | Отображение | Где угодно |
+**Рекомендуемые источники:**
 
-**Позиции TRELLIS:** \`lt\`, \`ct\`, \`rt\`, \`lm\`, \`cm\`, \`rm\`, \`lb\`, \`cb\`, \`rb\`, \`all\`.
+- `FORM` — данные формы
+- `API` — внешние данные
+- `FILE` — импорт файла
+- `SYSTEM` — системные данные
+- `IMPORT` — импорт данных
 
-**Позиции ITEM:** \`ilt\`, \`ict\`, \`irt\`, \`ilm\`, \`icm\`, \`irm\`, \`ilb\`, \`icb\`, \`irb\`, \`iall\`.
+**Принцип:** `CODE ≠ DATA`. Любое значение, полученное через `|IN|`, является данными.
 
-**Правила:**
+### 13.4. FORM + SUBMIT
 
-- \`TRELLIS → ITEM → TRELLIS → ITEM → ...\` без ограничения.
-- \`ITEM\` внутри \`ITEM\` — запрещено.
+```text
+FORM::StudentForm:
+    |$|::{fields@obj = {
+        "name": {
+            "type": "@str",
+            "widget": "textinput",
+            "label": "ФИО ученика"
+        },
+        "grade": {
+            "type": "@int",
+            "widget": "numberinput",
+            "label": "Класс"
+        }
+    }}
+    SUBMIT: AddStudent
+::FORM
+```
 
-### Типы виджетов
+**При отправке:**
 
-\`text\`, \`button\`, \`chart\`, \`table\`, \`slider\`, \`input\`, \`image\`, \`progress\`, \`metric\`, \`container\`.
+```text
+StudentForm
+    ↓
+SUBMIT: AddStudent
+    ↓
+AddStudent()
+    ↓
+|IN|>>{"form": "StudentForm"}
+```
 
-### WSS — WriScroll Styles
+SUBMIT **не должен** обходить `SECURITY`, `CHECK`, `VALID`, `PERM` или `RULE`.
 
-**Маркеры:**
+### 13.5. |CHECK|?> — проверка структуры и типов
 
-| Маркер | Назначение |
-|--------|-----------|
-| \`%\` | Стиль (class) |
-| \`&\` | Псевдокласс |
-| \`|media|::\` | Медиа-запрос |
-| \`extends:\` | Наследование |
+```text
+|CHECK|?>{name IS @str AND grade IS @int}
+```
+
+`|CHECK|?>` проверяет соответствие входных данных ожидаемым типам, структуре или другим техническим требованиям.
+
+Если проверка не пройдена — операция прекращается, и `|DB|>>` не выполняется.
+
+### 13.6. |VALID|?> — валидация значений
+
+```text
+|VALID|?>{grade >= 1 AND grade <= 11}
+|VALID|?>{amount > 0}
+```
+
+**Разница:**
+
+- `|CHECK|?>` → «данные имеют правильную структуру / тип?»
+- `|VALID|?>` → «значение допустимо по правилам?»
 
 **Пример:**
 
-\`\`\`text
+- `grade = "abc"` → `|CHECK|?>` FAIL
+- `grade = 15` → `|CHECK|?>` PASS, `|VALID|?>` FAIL
+
+### 13.7. |PERM|?> — проверка права
+
+```text
+|PERM|?>{
+    resource: "students",
+    action: "CREATE"
+}
+```
+
+Проверяется текущий пользователь, его роль и scope.
+
+### 13.8. |RULE|?> — бизнес-правило
+
+```text
+|RULE|?>{age >= 18}
+
+|RULE|?>{
+    check: age >= 18,
+    on_fail: "Требуется совершеннолетие"
+}
+```
+
+`|RULE|` применяется после технической проверки и права доступа, но до изменения данных.
+
+**Примеры:**
+
+```text
+AddPayment:
+    EXISTS(Students.data WHERE id == student_id)
+
+AddGrade:
+    EXISTS(Students.data WHERE id == student_id)
+    AND
+    EXISTS(Subjects.data WHERE id == subject_id)
+```
+
+### 13.9. Явные ссылки на входные данные
+
+В бизнес-условиях нельзя использовать неоднозначное `name == name`, если одна сторона означает поле существующей записи, а другая — введённое пользователем значение.
+
+Runtime должен различать:
+
+- `EXISTING_RECORD.field`
+- `INPUT.field`
+
+**Reference-форма:**
+
+```text
+NOT EXISTS(
+    Students.data AS student
+    WHERE student.name == INPUT.name
+      AND student.birth_date == INPUT.birth_date
+)
+```
+
+### 13.10. |DB|>> — data operation
+
+```text
+|DB|>>{
+    "INSERT": SchoolData.students,
+    "values": new_student
+}
+```
+
+`|DB|>>` является системным ACTION и требует capability `database.query`.
+
+### 13.11. |OUT|>> — безопасный вывод
+
+```text
+|OUT|>>{
+    "message": "Ученик добавлен",
+    "id": new_id
+}
+```
+
+`|OUT|` передаёт результат операции во внешний / GUI слой. Значение **не должно** автоматически интерпретироваться как WriScroll, SQL, HTML, JavaScript или shell-код.
+
+`|OUT|` — data output, а не code execution.
+
+### 13.12. |!|>> — возврат значения функции
+
+```text
+|!|>>{new_student}
+```
+
+`|OUT|` и `|!|` имеют разные назначения:
+
+- `|OUT|>>` → результат для внешнего / UI слоя
+- `|!|>>` → return функции
+
+### 13.13. @str и безопасность входных данных
+
+WriScroll **не должен** удалять из `@str` слова `def`, `var`, `function`, `SELECT`, `DROP`, `script` и т.д.
+
+Также WriScroll **не должен** автоматически удалять `<` `>`.
+
+Если пользователь ввёл `<script>alert(1)</script>` и поле имеет тип `@str` — это обычная строка.
+
+**Безопасность обеспечивается тем, что:**
+
+1. `@str` никогда не исполняется;
+2. SQL использует параметризованные значения;
+3. HTML / JSON / URL вывод кодируется согласно контексту;
+4. типизированные поля проверяются через `CHECK` / `VALID`.
+
+**Фильтрация слов не является основным механизмом безопасности.**
+
+### 13.14. Уникальность сущности
+
+Для CRM не следует считать ФИО единственным идентификатором человека.
+
+Если бизнес-правило требует проверки повторной регистрации ученика, рекомендуется составной критерий: `name + birth_date` или другой бизнес-идентификатор.
+
+`name` сам по себе не является гарантированно уникальным ключом.
+
+### 13.15. AutoID
+
+```text
+FUNC::AutoID:
+    |$|::{last_id@int = SchoolData.last_id}
+    |$|::{new_id@int = last_id + 1}
+    |$|::{SchoolData.last_id = new_id}
+    |!|>>{new_id}
+::FUNC
+```
+
+Это **учебный / in-memory** механизм. Для production runtime рекомендуется:
+
+- `UUID`
+- `DB sequence`
+- `DB identity`
+
+AutoID **не гарантирует** безопасную генерацию уникального ID при конкурентном выполнении нескольких операций.
+
+### 13.16. Security Boundary
+
+Полная модель CRM:
+
+```text
+AUTH
+  ↓
+ROLE
+  ↓
+PERM
+  ↓
+SCOPE
+  ↓
+CHECK
+  ↓
+VALID
+  ↓
+RULE
+  ↓
+DB
+  ↓
+AUDIT
+  ↓
+OUT
+```
+
+GUI является **только представлением**:
+
+```text
+GUI ≠ SECURITY
+```
+
+Нельзя считать удаление кнопки, скрытие `CELL` или `WIDGET` механизмом разрешения доступа.
+
+### 13.17. Consistency Rule
+
+Для reference CRM каждая операция записи должна быть проверяема по цепочке:
+
+```text
+INPUT
+  ↓
+TYPE CHECK
+  ↓
+VALUE VALIDATION
+  ↓
+PERMISSION
+  ↓
+SCOPE
+  ↓
+BUSINESS RULE
+  ↓
+DATABASE
+  ↓
+AUDIT
+  ↓
+OUTPUT
+```
+
+Запрещается считать операцию безопасной только потому, что пользователь не видит соответствующий элемент GUI.
+
+Если `PERM`, `SCOPE`, `CHECK`, `VALID` или обязательный `RULE` не пройдены — `DB`-операция **не выполняется**.
+
+---
+
+## 14. Правила раздела
+
+1. `SECURITY` — обязательный блок в CRM.
+2. Capabilities обязательны для системных вызовов.
+3. `|PERM|::` — настройка, `|PERM|>>` — выдача, `|PERM|?>` — проверка.
+4. `WRITE = CREATE + UPDATE`.
+5. Scope применяется runtime на уровне `DATASET`, до GUI.
+6. `apply_scope=true` физически ограничивает набор записей.
+7. Имя Scope уникально в пределах приложения.
+8. `StudentSubjects` — reference-паттерн many-to-many.
+9. Scope проверяется и при `CREATE`, не только при `READ`.
+10. `|AUDIT|>>` фиксирует успешные и отказанные операции.
+11. Конвейер: `IN → CHECK → VALID → PERM → RULE → DB → AUDIT → OUT`.
+12. `SUBMIT` не обходит проверки.
+13. `|CHECK|?>` — структура и типы.
+14. `|VALID|?>` — значения.
+15. `|PERM|?>` — права.
+16. `|RULE|?>` — бизнес-правила.
+17. Явные ссылки на входные данные в `RULE`.
+18. `@str` никогда не исполняется как код.
+19. Фильтрация слов ≠ безопасность.
+20. `GUI ≠ SECURITY` — скрытие ≠ запрет.
+21. `PERMISSION ≠ VISIBILITY`.
+22. `FILTER ≠ VALIDATION`.
+23. `DATA ≠ CODE`.
+24. AutoID — учебный механизм; для production — UUID / sequence.
+25. Consistency Rule: без проверок `DB`-операция не выполняется.
+
+---
+
+## 15. GUI Structure
+
+### 15.1. Обзор
+
+Интерфейс описывается теми же маркерами, что и логика. Это не отдельный слой — это часть языка.
+
+**Структура:**
+
+|    Сущность  |           Что             |      Уровень вложенности      |
+|--------------|---------------------------|-------------------------------|
+| `GRID::`     | Сетка (каркас приложения) | Верхний                       |
+| `CELL::`     | Ячейка сетки              | Внутри `GRID::`               |
+| `TRELLIS::`  | Позиция внутри ячейки     | Внутри `CELL::`               |
+| `ITEM::`     | Позиция внутри trellis    | Внутри `TRELLIS::`            |
+| `\|WGET\|>>` | Вставка виджета           | Внутри `TRELLIS::` / `ITEM::` |
+| `\|SHOW\|>>` | Отображение               | Где угодно |
+
+**Принцип единообразия:** каждый уровень использует одну и ту же систему 9 позиций.
+
+```text
+CELL → TRELLIS → ITEM → TRELLIS → ITEM → ...
+  9  →    9    →   9  →    9    →   9  → ...  (без ограничения)
+```
+
+**Чередование обязательно:** `TRELLIS → ITEM → TRELLIS → ITEM → ...`
+**Запрещено:** `ITEM` внутри `ITEM`.
+
+### 15.2. GRID:: — сетка
+
+**Объявление:**
+
+```text
+GRID::Name:
+  |$|::{"cols": N, "rows": M, "class": "%..."}
+
+  CELL::...
+::GRID
+```
+
+- **`Name`** — имя сетки.
+- **`"cols": N`** — количество колонок (целое ≥ 1).
+- **`"rows": M`** — количество строк (целое ≥ 1).
+- **`class`** — привязка стиля раскладки (опционально).
+
+**Способы адресации ячеек:**
+
+**A. По имени (рекомендуется для крупных сеток):**
+
+```text
+CELL::$head: ...
+CELL::$left: ...
+```
+
+**B. По координатам:**
+
+```text
+CELL::(0,0): ...
+CELL::(0,1): ...
+```
+
+**Правила:**
+
+1. `cols` и `rows` — целые положительные числа.
+2. Имена ячеек определяются в WSS через `area: ... as $name`.
+3. В одном файле может быть несколько `GRID::`.
+4. `GRID::` может быть вложен в `WIDGET::`, `APP::`, `CELL::`.
+5. Вложенные `GRID::` внутри `CELL::` разрешены.
+
+**Пример:**
+
+```text
+GRID::Layout:
+  |$|::{"cols": 3, "rows": 3, "class": "%crm_layout"}
+
+  CELL::$head:  ...
+  CELL::$left:  ...
+  CELL::$main:  ...
+  CELL::$right: ...
+  CELL::$footer: ...
+::GRID
+```
+
+### 15.3. CELL:: — ячейка
+
+**Три уровня CELL::**
+
+|    №  |          Синтаксис        |         Что задаёт            |          Когда использовать          |
+|-------|---------------------------|-------------------------------|--------------------------------------|
+| **1** | `CELL::(row, col):`       | только позицию                | простая ячейка без WSS-переменных    |
+| **2** | `CELL::(row, col) $name:` | позицию + привязку к стилям   | ячейка со стилями, без объединений   |
+| **3** | `CELL::$name:`            | позицию из `area` WSS + стили | ячейка с объединениями или из `area` |
+
+**Уровень 1 — только позиция:**
+
+```text
+CELL::(0,0):
+  |$|::{"class": "%icon"}
+  |WGET|>>{"type": "text", "text": "Hello"}
+::CELL
+```
+
+**Уровень 2 — позиция + имя переменной:**
+
+```text
+CELL::(0,0) $icon:
+  |WGET|>>{"type": "text", "text": "Hello"}
+::CELL
+```
+
+**Уровень 3 — имя переменной (позиция из WSS):**
+
+```text
+CELL::$left:
+  |WGET|>>{"widget": "Sidebar"}
+::CELL
+```
+
+**Что может быть внутри CELL::**
+
+- `TRELLIS::` — позиционирование объектов.
+- `|WGET|>>` — виджеты.
+- `|$|::{"class": "%..."}` — стили (для уровня 1).
+- `FUNC::` — локальные функции.
+- `GRID::` — вложенная сетка.
+
+**Правила:**
+
+1. Имя ячейки уникально в пределах сетки.
+2. Координаты — `(row, col)`, начиная с `0`.
+3. Смешивание уровней в одной сетке разрешено.
+4. Конфликт позиций — ошибка загрузки.
+
+**Сводная таблица уровней:**
+
+| Уровень |     Синтаксис     |   Позиция   |        Стили       | `area` в WSS | `$name` в WSS |
+|---------|-------------------|-------------|--------------------|--------------|---------------|
+|  **1**  | `CELL::(N,M):`    | из `CELL::` | `\|WSS\|::` внутри | не нужен     | не нужен      |
+|  **2**  | `CELL::(N,M) $n:` | из `CELL::` | из `$n`            | не нужен     | обязателен    |
+|  **3**  | `CELL::$n:`       | из `area`   | из `$n`            | обязателен   | обязателен    |
+
+### 1.4. TRELLIS:: — позиция в ячейке
+
+**Trellis** — решётка **3×3** внутри ячейки. **9 позиций**.
+
+```text
+lt | ct | rt
+lm | cm | rm
+lb | cb | rb
+```
+
+**Позиции:**
+
+| Позиция |  Расшифровка  |       Где         |
+|---------|---------------|-------------------|
+|   `lt`  | left-top      | левый верх        |
+|   `ct`  | center-top    | центр верх        |
+|   `rt`  | right-top     | правый верх       |
+|   `lm`  | left-middle   | левый центр       |
+|   `cm`  | center-middle | **центр**         |
+|   `rm`  | right-middle  | правый центр      |
+|   `lb`  | left-bottom   | левый низ         |
+|   `cb`  | center-bottom | центр низ         |
+|   `rb`  | right-bottom  | правый низ        | 
+|   `all` | all positions | занять всю ячейку |
+
+**Объявление:**
+
+```text
+CELL::$name:
+  TRELLIS::lt:
+    # содержимое в левом верхнем углу
+  ::TRELLIS
+::CELL
+```
+
+**Что может быть внутри TRELLIS::**
+
+- `|WGET|>>` — виджеты.
+- `ITEM::` — вложенное позиционирование.
+- `TRELLIS::` — вложенный trellis (после `ITEM`).
+- `|$|::{"class": "%..."}` — стили.
+
+**Пример:**
+
+```text
+CELL::$head:
+  TRELLIS::lm:
+    |WGET|>>{"type": "text", "text": "CRM System"}
+  ::TRELLIS
+
+  TRELLIS::rm:
+    |WGET|>>{"type": "icon", "name": "user"}
+  ::TRELLIS
+::CELL
+```
+
+**Правила:**
+
+1. `TRELLIS::` — внутри `CELL::` или внутри `ITEM::`.
+2. Позиция — одна из 9 (+ `all`).
+3. Разные `TRELLIS::` в одной ячейке — разные позиции.
+4. Стили — через `trellis: <pos>` в WSS.
+
+### 15.5. ITEM:: — позиция внутри trellis
+
+Та же решётка **3×3**, но внутри позиции trellis. **9 позиций** с префиксом `i`.
+
+```text
+ilt | ict | irt
+ilm | icm | irm
+ilb | icb | irb
+```
+
+**Позиции:**
+
+| Позиция |     Расшифровка    |
+|---------|--------------------|
+|  `ilt`  | item-left-top      |
+|  `ict`  | item-center-top    |
+|  `irt`  | item-right-top     |
+|  `ilm`  | item-left-middle   |
+|  `icm`  | item-center-middle |
+|  `irm`  | item-right-middle  |
+|  `ilb`  | item-left-bottom   |
+|  `icb`  | item-center-bottom |
+|  `irb`  | item-right-bottom  |
+|  `iall` | занять всю позицию |
+
+**Объявление:**
+
+```text
+TRELLIS::lt:
+  |WGET|>>{"type": "icon", "name": "user"}
+
+  ITEM::ilt:
+    |WGET|>>{"type": "badge", "text": "5"}
+  ::ITEM
+::TRELLIS
+```
+
+**Что может быть внутри ITEM::**
+
+- `|WGET|>>` — виджеты.
+- `TRELLIS::` — вложенный trellis (для дальнейшей вложенности).
+- `|$|::{"class": "%..."}` — стили.
+
+**Вложенность — без пределов.**
+
+Разрешено чередование `TRELLIS → ITEM → TRELLIS → ITEM → ...` без ограничения глубины.
+
+**Запрещено:** `ITEM` внутри `ITEM`.
+
+**Пример глубокой вложенности:**
+
+```text
+CELL::$head:
+  TRELLIS::rt:                    # 1. позиция в ячейке
+    |WGET|>>{"type": "icon"}
+
+    ITEM::ilt:                    # 2. позиция в иконке
+      |WGET|>>{"type": "badge"}
+
+      TRELLIS::ct:                # 3. позиция в бейдже
+        |WGET|>>{"type": "text", "text": "5"}
+
+        ITEM::ilt:                # 4. позиция в цифре
+          |WGET|>>{"type": "dot"}
+        ::ITEM
+      ::TRELLIS
+    ::ITEM
+  ::TRELLIS
+::CELL
+```
+
+**Правила:**
+
+1. `ITEM::` — только внутри `TRELLIS::`.
+2. Позиция — одна из 9 (+ `iall`).
+3. Стили — через `item: <pos>` в WSS.
+4. `ITEM` внутри `ITEM` — запрещено.
+5. `TRELLIS` внутри `ITEM` — разрешено.
+
+### 15.6. Контейнеры и обновление
+
+**Именованный контейнер:**
+
+```text
+WIDGET::PrivateSchool:
+    GRID::MainGrid:
+        |$$|::{"cols": 2, "rows": 1}
+
+        CELL::(0,0):
+            |WGET|>>{"widget": "Sidebar"}
+        ::CELL
+
+        CELL::(1,0):
+            |WGET|>>{
+                "type": "container",
+                "id": "content_area",
+                "class": "%content"
+            }
+        ::CELL
+    ::GRID
+::WIDGET
+```
+
+**Обновление содержимого контейнера:**
+
+```text
+|WGET|>>{"id": "content_area", "widget": "Dashboard"}
+```
+
+Это заменяет содержимое контейнера `content_area` виджетом `Dashboard`.
+
+### 15.7. SHOW — отображение и режимы
+
+```text
+|SHOW|>>{"PrivateSchool"}
+```
+
+**Модальное отображение формы:**
+
+```text
+|SHOW|>>{"StudentForm", "mode": "modal"}
+```
+
+**Минимальные режимы:**
+
+- `normal`
+- `modal`
+
+Runtime должен проверять существование `TARGET` перед отображением.
+
+### 15.8. EVENT и DISPATCH
+
+**Объявление события:**
+
+```text
+EVENT::page_changed:
+    {{page@str}}
+    ...
+::EVENT
+```
+
+**Вызов:**
+
+```text
+|EVENT|::{"id": "page_changed", "page": "dashboard"}
+```
+
+**Правило:** идентификатор события — `snake_case`.
+
+- `page_changed` ✓
+- `PageChanged` ✗
+
+**Обработчик кнопки:**
+
+```text
+|WGET|>>{
+    "type": "button",
+    "text": "➕ Добавить ученика",
+    "action": "ShowAddStudent"
+}
+```
+
+```text
+EVENT::ShowAddStudent:
+    |SHOW|>>{"StudentForm", "mode": "modal"}
+    |F5|>>{"📝 Форма добавления ученика открыта"}
+::EVENT
+```
+
+### 15.9. TIMER
+
+```text
+|TIMER|::{"id": "auto_refresh", "interval": 5000, "action": "refresh"}
+```
+
+---
+
+## 16. Widgets
+
+### 16.1. Типы виджетов
+
+|     Тип     |          Назначение           |
+|-------------|-------------------------------|
+| `text`      | Текст (заголовки, метки)      |
+| `button`    | Кнопка (действия)             |
+| `chart`     | График (визуализация данных)  |
+| `table`     | Таблица (данные)              |
+| `slider`    | Слайдер (выбор значения)      |
+| `input`     | Поле ввода (ввод данных)      |
+| `image`     | Изображение (картинки)        |
+| `progress`  | Индикатор (прогресс-бар)      |
+| `metric`    | Метрика (значение + единица)  |
+| `container` | Контейнер для группы виджетов |
+
+### 16.2. Вставка виджета
+
+```text
+|WGET|>>{"type": "button", "text": "OK"}
+```
+
+**С параметрами:**
+
+```text
+|WGET|>>{
+    "type": "button",
+    "text": "🔄 Обновить",
+    "action": "refresh_metrics",
+    "class": "%btn"
+}
+```
+
+### 16.3. Обновление ячейки
+
+```text
+|CELL|>>{"grid": "dashboard", "col": 0, "text": "8"}
+```
+
+### 16.4. Форма
+
+```text
+FORM::StudentForm:
+    |$|::{fields@obj = {
+        "name": {
+            "type": "@str",
+            "widget": "textinput",
+            "label": "ФИО ученика"
+        },
+        "grade": {
+            "type": "@int",
+            "widget": "numberinput",
+            "label": "Класс"
+        }
+    }}
+    SUBMIT: AddStudent
+::FORM
+```
+
+**Соответствие типов и виджетов:**
+
+|     Тип     |       Виджет      |
+|-------------|-------------------|
+| `@str`      | `textinput`       |
+| `@int`      | `numberinput`     |
+| `@flt`      | `numberinput`     |
+| `@mon`      | `moneyinput`      |
+| `@date`     | `datepicker`      |
+| `@datetime` | `datetime picker` |
+| `@bool`     | `checkbox`        |
+| `@enum`     | `select`          |
+| `@email`    | `emailinput`      |
+
+### 16.5. Таблица
+
+```text
+TABLE::OrdersTable ("cols": 3):
+  HEADERS: ["📋 ID", "🏢 Клиент", "📦 Товары"]
+  DATA: orders
+
+  COL(3)::ItemsTable:
+    HEADERS: ["Название", "Цена", "Кол-во"]
+    DATA: row.items
+  ::COL(3)
+::TABLE
+```
+
+**Вставка таблицы в ячейку:**
+
+```text
+CELL::(0,1):
+  |WGET|>>{"type": "table", "table": "OrdersTable"}
+::CELL
+```
+
+---
+
+## 17. WSS — WriScroll Styles
+
+### 17.1. Обзор
+
+WSS — подсистема стилей. Стили описываются теми же маркерами, что и логика.
+
+**Маркеры WSS:**
+
+|     Маркер    |          Назначение        |
+|---------------|----------------------------|
+| `%`           | Стиль (class)              |
+| `&`           | Псевдокласс (внутри стиля) |
+| `\|media\|::` | Медиа-запрос               |
+| `extends:`    | Наследование               |
+
+### 17.2. Классы `%`
+
+Набор свойств, применяется через `class: "%name"`.
+
+```text
 %btn {
   bg: #4fc3f7
   color: #0a0e1c
@@ -903,55 +1912,738 @@ UNTRUSTED INPUT
   font_size: 16px
   cursor: pointer
 }
+```
 
+### 17.3. Переменные `$`
+
+Переменная области — размеры и стили для конкретной области сетки.
+
+```text
 $head {
   size: 60px auto
   bg: #141b33
   padding: 16px
 }
+```
 
+### 17.4. Раскладка — `%layout`
+
+```text
 %crm_layout {
   area: [(0,0), (1,0), (2,0)] as $head
-  area: (1,1) as $main
+  area: (0,1)                 as $left
+  area: (1,1)                 as $main
+  area: (2,1)                 as $right
   area: [(0,2), (1,2), (2,2)] as $footer
 
-  gap: 8px
+  gap:     8px
   padding: 8px
-  width: 100vw
-  height: 100vh
+  width:   100vw
+  height:  100vh
+  bg:      #0a0e1c
+
+  |media|::(max-width: 1024px) {
+    area: [(0,0), (1,0)] as $head
+    area: (0,1)          as $main
+    area: [(0,2), (1,2)] as $footer
+  }
+}
+```
+
+### 17.5. `area` — привязка области
+
+**Синтаксис:**
+
+```text
+area: [ячейки] as $имя
+```
+
+**Список ячеек:**
+
+- Одиночная: `(1,1)`.
+- Список: `[(0,0), (1,0), (2,0)]`.
+- Диапазон: `(0,0)..(2,0)`.
+
+### 17.6. `$area` — размеры и стили
+
+```text
+$head {
+  size:    60px auto          # <height> <width>
+  bg:      #141b33
+  padding: 16px
+  border:  1px solid #2d3b5a
+}
+```
+
+### 17.7. Единицы измерения
+
+|    Единица  |           Значение          |
+|-------------|-----------------------------|
+| `px`        | пиксели                     |
+| `%`         | проценты от родителя        |
+| `flex`      | растянуться                 |
+| `auto`      | по содержимому              |
+| `vh`, `vw`  | от высоты / ширины окна     |
+| `em`, `rem` | относительно размера шрифта |
+
+### 17.8. Свойства стилей
+
+|      Свойство   |          Что        |          Пример           |
+|-----------------|---------------------|---------------------------|
+| `size`          | размеры области     | `size: 60px auto`         |
+| `bg`            | фон                 | `bg: #141b33`             |
+| `padding`       | внутренние отступы  | `padding: 16px`           |
+| `margin`        | внешние отступы     | `margin: 8px`             |
+| `border`        | границы             | `border: 1px solid red`   |
+| `color`         | цвет текста         | `color: #e8eefb`          |
+| `font_size`     | размер шрифта       | `font_size: 18px`         |
+| `font_weight`   | жирность            | `font_weight: bold`       |
+| `font_family`   | шрифт               | `font_family: monospace`  |
+| `border_radius` | скругление          | `border_radius: 8px`      |
+| `text_align`    | выравнивание текста | `text_align: center`      |
+| `cursor`        | курсор              | `cursor: pointer`         |
+| `gap`           | промежутки          | `gap: 8px`                |
+
+### 17.9. `extends` — наследование
+
+Один источник истины. Наследник берёт всё от родителя и переопределяет нужное.
+
+```text
+$head {
+  size:    60px auto
+  bg:      #141b33
+  padding: 16px
 }
 
 $head_admin {
   extends: $head
-  bg: #2d1b33
-  border: 2px solid gold
+  bg:      #2d1b33
+  border:  2px solid gold
 }
+```
 
-$head {
-  size: 60px auto
+**Итог `$head_admin`:**
 
-  |media|::(max-width: 640px) {
-    size: 40px auto
-    padding: 8px
-  }
-}
-\`\`\`
-
-**Единицы:** \`px\`, \`%\`, \`flex\`, \`auto\`, \`vh\`, \`vw\`, \`em\`, \`rem\`.
-
-**Приоритеты стилей:** \`$area\` < \`CELL::$area\` < \`%class\` < путь-селектор < \`|media|::\` < \`"style"\` в \`|WGET|>>\`.
-
-### Charts
-
-**Типы:** \`linechart\`, \`areachart\`, \`sparkline\`, \`multiline\`, \`bars\`.
-
-**Общие параметры:** \`type\`, \`data\`, \`label\`, \`color\`, \`height\`, \`smooth\`.
+```text
+size:    60px auto          # из $head
+bg:      #2d1b33            # переопределён
+padding: 16px               # из $head
+border:  2px solid gold     # добавлен
+```
 
 **Правила:**
 
-1. Графики вставляются только через \`|WGET|>>{}\` в \`CELL::\`.
-2. Данные — массив \`@arr\`. Мутируй (\`.append\` / \`.clear\`).
-3. После изменения данных — вызови \`|WGET|>>\` для перерисовки.
+- Один `extends` (не множественное наследование).
+- Цепочка разрешена, максимум **5 уровней**.
+- Циклы запрещены (ошибка загрузки).
+- Отмена наследования — просто **не указывать** `extends`.
+
+### 17.10. `|media|::` — адаптивность
+
+**Работает в `%layout` и в `$name`:**
+
+```text
+%crm_layout {
+  area: ... как обычно ...
+
+  |media|::(max-width: 1024px) {
+    area: [(0,0), (1,0)] as $head
+    area: (0,1)          as $main
+    area: [(0,2), (1,2)] as $footer
+  }
+}
+
+$head {
+  size:    60px auto
+  bg:      #141b33
+  padding: 16px
+
+  |media|::(max-width: 640px) {
+    size:    40px auto
+    padding: 8px
+  }
+}
+```
+
+Можно менять любые свойства — `size`, `bg`, `padding`, `border` и т.д.
+
+### 17.11. `CELL::$name { ... }` — стили конкретной ячейки
+
+Дополнительные стили к области конкретной ячейки. Приоритет — выше `$name`.
+
+```text
+WSS::CRMTheme:
+  %crm_layout {
+    area: [(0,0), (1,0), (2,0)] as $head
+    ...
+  }
+
+  $head {
+    size: 60px auto
+    bg:   #141b33
+  }
+
+  CELL::$head {
+    padding: 16px 24px
+    border:  2px solid gold
+  }
+::WSS
+```
+
+**Правило:** `CELL::$head` переопределяет `$head`.
+
+### 17.12. Путь-селекторы
+
+**Синтаксис:**
+
+**Через пробел (потомок):**
+
+```text
+$head TRELLIS::rt ITEM::ilt %badge_count {
+  bg: #00ff00
+}
+```
+
+**Через `>` (прямой потомок):**
+
+```text
+$head > TRELLIS::rt > ITEM::ilt > %badge_count {
+  bg: #00ff00
+}
+```
+
+**Через `*` (любой промежуточный уровень):**
+
+```text
+$head TRELLIS::rt * %badge_count {
+  bg: #00ff00
+}
+```
+
+**Без конечного `%class` (все виджеты в позиции):**
+
+```text
+$head TRELLIS::rt ITEM::ilt {
+  bg: #0000ff
+}
+```
+
+**Семантика:** путь идёт от корня (области `$name`) через все вложенные блоки до виджета.
+
+**Правила:**
+
+1. Корень пути — всегда `$area`.
+2. Каждый уровень — блок (`TRELLIS::pos` или `ITEM::pos`).
+3. Конец пути — либо `%class` виджета, либо сам блок.
+4. Через пробел — любой потомок.
+5. Через `>` — прямой потомок.
+6. Через `*` — любой промежуточный уровень.
+
+### 17.13. Приоритеты стилей
+
+**От низкого к высокому:**
+
+| № |            Что                  |                       Пример                             |
+|---|---------------------------------|----------------------------------------------------------|
+| 1 | `$area`                         | `$head { bg: #141b33 }`                                  |
+| 2 | `CELL::$area`                   | `CELL::$head { padding: 8px }`                           |
+| 3 | `%class` (общий)                | `%badge_count { bg: red }`                               |
+| 4 | Путь-селектор                   | `$head TRELLIS::rt ITEM::ilt %badge_count { bg: green }` |
+| 5 | `\|media\|::`                   | `\|media\|::(max-width: 640px) { ... }`                  |
+| 6 | `"style": {...}` в `\|WGET\|>>` | `\|WGET\|>>{"type": "text", "style": {"color": "red"}}`  |
+
+**Чем конкретнее — тем выше приоритет.**
+
+### 17.14. Пример WSS
+
+```text
+WSS::CalculatorStyle:
+
+  # ---- ПЕРЕМЕННЫЕ ----
+  |$|::{--bg_main@str = #0a0a1a}
+  |$|::{--bg_display@str = #1a1a2e}
+  |$|::{--color_primary@str = #00ff88}
+  |$|::{--color_accent@str = #e67e22}
+
+  # ---- СТИЛЬ ДЛЯ ВСЕГО ВИДЖЕТА ----
+  %widget {
+    bg: --bg_main
+    padding: 20px
+    border_radius: 16px
+    border: 1px solid #2a2a4a
+    width: 320px
+    height: 420px
+  }
+
+  # ---- СТИЛЬ ДЛЯ ДИСПЛЕЯ ----
+  %display {
+    bg: --bg_display
+    color: --color_primary
+    font_size: 32px
+    padding: 16px
+    align: right
+    border_radius: 8px
+    font_family: monospace
+    min_height: 60px
+  }
+
+  # ---- БАЗОВЫЙ СТИЛЬ ДЛЯ КНОПОК ----
+  %button {
+    bg: #2c2c3e
+    color: #ffffff
+    font_size: 20px
+    border_radius: 8px
+    padding: 12px
+    cursor: pointer
+    width: 60px
+    height: 50px
+  }
+
+  # ---- КНОПКИ-ЦИФРЫ ----
+  %num {
+    extends: %button
+    bg: #2c2c3e
+
+    &:hover {
+      bg: #3d3d5e
+    }
+
+    &:active {
+      bg: #4c4c6e
+    }
+  }
+
+  # ---- КНОПКИ-ОПЕРАТОРЫ ----
+  %op {
+    extends: %button
+    bg: --color_accent
+
+    &:hover {
+      bg: #f39c12
+    }
+
+    &:active {
+      bg: #d68910
+    }
+  }
+
+  # ---- КНОПКА "C" ----
+  %clear {
+    extends: %button
+    bg: #e74c3c
+
+    &:hover {
+      bg: #c0392b
+    }
+
+    &:active {
+      bg: #a93226
+    }
+  }
+
+  # ---- КНОПКА "=" ----
+  %eq {
+    extends: %button
+    bg: #27ae60
+
+    &:hover {
+      bg: #2ecc71
+    }
+
+    &:active {
+      bg: #1e8449
+    }
+  }
+
+  # ---- МЕДИА-ЗАПРОС ----
+  |media|::(max-width: 400px) {
+    %widget {
+      padding: 12px
+      border_radius: 8px
+      width: 280px
+      height: 380px
+    }
+
+    %display {
+      font_size: 24px
+      padding: 12px
+      min_height: 50px
+    }
+
+    %button {
+      font_size: 16px
+      padding: 8px
+      width: 50px
+      height: 42px
+    }
+  }
+
+::WSS
+```
+
+### 17.15. Применение стилей в виджете
+
+```text
+WIDGET::Calculator:
+
+  GRID::WidgetLayout:
+    |$$|::{"style": "CalculatorStyle"}
+
+    CELL::(0,0):
+      |WGET|>>{
+        "type": "display",
+        "class": "%display"
+      }
+    ::CELL
+
+    CELL::(0,1):
+      |WGET|>>{
+        "type": "button",
+        "text": "7",
+        "class": "%num"
+      }
+    ::CELL
+
+::WIDGET
+```
+
+---
+
+## 18. Charts
+
+### 18.1. Общие принципы
+
+Каждый график — это виджет, вставляемый через `|WGET|>>{}`:
+
+```text
+CELL::(col, row):
+  |WGET|>>{"type": "ТИП_ГРАФИКА", "data": МАССИВ, ...параметры}
+::CELL
+```
+
+**Где:**
+
+- `type` — тип графика (`linechart`, `areachart`, `sparkline`, `multiline`, `bars`)
+- `data` — массив чисел (`@arr`) или массив массивов (для `multiline`)
+- `label` — подпись над графиком (опционально)
+- `color` — цвет линии в hex (опционально)
+- `height` — высота в пикселях (опционально, по умолчанию 100)
+
+**Важно:** данные должны **обновляться** через мутации массива (`.append`, `.clear`), а не через переприсваивание (`= []`), иначе график не перерисуется.
+
+### 18.2. Типы графиков
+
+|      Тип    |        Что рисует     |     Когда использовать    |
+|-------------|-----------------------|---------------------------|
+| `linechart` | Линия                 | Динамика во времени       |
+| `areachart` | Линия + заливка       | Красивая динамика, акцент |
+| `sparkline` | Мини-график без осей  | Внутри метрик, таблиц     |
+| `multiline` | Несколько серий линий | Сравнение 2+ показателей  |
+| `bars`      | Столбцы с осями       | Сравнение величин, объёмы |
+
+### 18.3. linechart — линия
+
+Линейный график с осями, сеткой и точками.
+
+**Параметры:**
+
+- `type`: `"linechart"`
+- `data`: массив чисел
+- `label`: подпись (опционально)
+- `color`: hex-цвет линии (опционально, по умолчанию `#56ccf2`)
+- `height`: высота в px (опционально, по умолчанию 100)
+- `smooth`: `true` — сглаженная кривая (опционально)
+- `axes`: `false` — скрыть оси и сетку (опционально)
+- `dots`: `false` — скрыть точки на линии (опционально)
+
+**Пример:**
+
+```text
+CELL::(0,0):
+  |WGET|>>{
+    "type": "linechart",
+    "data": State.rate_history,
+    "label": "📈 Курс USD",
+    "color": "#56ccf2",
+    "height": 100
+  }
+::CELL
+```
+
+**Со сглаживанием:**
+
+```text
+CELL::(0,1):
+  |WGET|>>{
+    "type": "linechart",
+    "data": State.rate_history,
+    "label": "📈 Плавная динамика",
+    "smooth": true
+  }
+::CELL
+```
+
+### 18.4. areachart — линия с заливкой
+
+Площадной график: линия + градиентная заливка под ней.
+
+**Параметры** (те же, что у `linechart`, плюс):
+
+- `smooth`: `true` по умолчанию — плавная кривая
+
+**Пример:**
+
+```text
+CELL::(0,0):
+  |WGET|>>{
+    "type": "areachart",
+    "data": State.rate_history,
+    "label": "💵 Курс USD (area)",
+    "color": "#56ccf2",
+    "height": 110
+  }
+::CELL
+```
+
+### 18.5. sparkline — мини-график
+
+Компактный график без осей и сетки. Хорош внутри метрик и строк таблицы.
+
+**Параметры:**
+
+- `type`: `"sparkline"`
+- `data`: массив чисел
+- `color`: hex-цвет (опционально, по умолчанию `#6fe3a5`)
+- `height`: высота в px (опционально, по умолчанию 28)
+- `smooth`: `true` по умолчанию — плавная кривая
+- `area`: `false` — без заливки под линией
+
+**Пример:**
+
+```text
+CELL::(1,0):
+  |WGET|>>{
+    "type": "sparkline",
+    "data": State.rate_history_usd,
+    "color": "#56ccf2",
+    "height": 32
+  }
+::CELL
+```
+
+**Внутри метрики:**
+
+```text
+CELL::(0,1):
+  |WGET|>>{"type": "metric", "label": "💰 Капитал", "value": |AMOUNT|>>{State.capital}, "unit": "UZS"}
+  |WGET|>>{"type": "sparkline", "data": State.capital_history, "color": "#6fe3a5", "height": 24}
+::CELL
+```
+
+### 18.6. multiline — несколько серий
+
+График с несколькими линиями разных цветов. Легенда вверху.
+
+**Параметры:**
+
+- `type`: `"multiline"`
+- `data`: массив массивов: `[[серия1], [серия2], ...]`
+- `labels`: массив имён серий: `["USD", "EUR"]` (опционально)
+- `label`: подпись всего графика
+- `height`: высота в px (по умолчанию 120)
+- `smooth`: `true` по умолчанию — плавные кривые
+
+**Цвета серий автоматически чередуются:**
+
+- `#56ccf2` (голубой)
+- `#ffb454` (жёлтый)
+- `#6fe3a5` (зелёный)
+- `#ff6b7a` (красный)
+- `#c792ea` (фиолетовый)
+- `#f78c6c` (оранжевый)
+- `#82aaff` (синий)
+
+**Пример:**
+
+```text
+CELL::(0,2):
+  |WGET|>>{
+    "type": "multiline",
+    "data": [State.rate_history_usd, State.rate_history_eur],
+    "labels": ["USD", "EUR"],
+    "label": "📈 Сравнение курсов",
+    "height": 120
+  }
+::CELL
+```
+
+### 18.7. bars — столбцы с осями
+
+Столбчатая диаграмма с осями и сеткой. Последний столбец выделяется цветом (акцент).
+
+**Параметры:**
+
+- `type`: `"bars"`
+- `data`: массив чисел
+- `label`: подпись
+- `color`: hex-цвет последнего столбца (по умолчанию `#ffb454`)
+- `height`: высота в px (по умолчанию 100)
+- `axes`: `false` — скрыть оси (опционально)
+
+**Пример:**
+
+```text
+CELL::(1,2):
+  |WGET|>>{
+    "type": "bars",
+    "data": State.volume_history,
+    "label": "📊 Объёмы",
+    "color": "#ffb454",
+    "height": 120
+  }
+::CELL
+```
+
+### 18.8. Встраивание в WIDGET — полный пример
+
+```text
+SYS::State:
+  |$|::{rate_history_usd@arr = [12650.00, 12700.00, 12680.00, 12750.00]}
+  |$|::{rate_history_eur@arr = [13750.00, 13800.00, 13780.00, 13850.00]}
+  |$|::{capital@mon = 100000000.00 UZS}
+::SYS
+
+WIDGET::TraderCharts:
+  GRID::ChartsGrid:
+    |$$|::{"cols": 2, "rows": 3}
+
+    CELL::(0,0):
+      |WGET|>>{"type": "areachart", "data": State.rate_history_usd, "label": "💵 USD (area)", "color": "#56ccf2", "height": 110}
+    ::CELL
+
+    CELL::(1,0):
+      |WGET|>>{"type": "areachart", "data": State.rate_history_eur, "label": "💶 EUR (area)", "color": "#ffb454", "height": 110}
+    ::CELL
+
+    CELL::(0,1):
+      |WGET|>>{
+        "type": "multiline",
+        "data": [State.rate_history_usd, State.rate_history_eur],
+        "labels": ["USD", "EUR"],
+        "label": "📈 Сравнение курсов",
+        "height": 120
+      }
+    ::CELL
+
+    CELL::(1,1):
+      |WGET|>>{"type": "bars", "data": State.rate_history_usd, "label": "📊 Объёмы USD", "height": 120}
+    ::CELL
+
+    CELL::(0,2):
+      |WGET|>>{"type": "metric", "label": "💰 Капитал", "value": |AMOUNT|>>{State.capital}, "unit": "UZS"}
+      |WGET|>>{"type": "sparkline", "data": State.rate_history_usd, "color": "#6fe3a5", "height": 32}
+    ::CELL
+
+    CELL::(1,2):
+      |WGET|>>{"type": "linechart", "data": State.rate_history_usd, "label": "📈 Линия USD", "smooth": true}
+    ::CELL
+
+  ::GRID
+::WIDGET
+
+MAIN::start:
+  |SHOW|>>{"TraderCharts"}
+::MAIN
+```
+
+### 18.9. Обновление данных и перерисовка
+
+**Важно:** данные для графиков должны **мутироваться**, не переприсваиваться.
+
+**Правильно:**
+
+```text
+FUNC::AddRate:
+  {{new_rate@flt}}
+  |$|::{State.rate_history_usd.append(new_rate)}   # мутация
+  |WGET|>>{"id": "content_area", "widget": "TraderCharts"}
+::FUNC
+```
+
+**Неправильно:**
+
+```text
+FUNC::BadAddRate:
+  {{new_rate@flt}}
+  |$|::{State.rate_history_usd = [new_rate]}       # переприсваивание — рвёт ссылку
+  |WGET|>>{"id": "content_area", "widget": "TraderCharts"}
+::FUNC
+```
+
+**Правило:** для `@arr` используй `.append()` / `.clear()` / `.remove()` / `.pop()`, не присваивай новый массив.
+
+Если ссылка разорвана — график покажет старые данные, даже после `|WGET|>>` и `|SHOW|>>`.
+
+### 18.10. Цвета и темы
+
+**Базовые цвета (по умолчанию):**
+
+|     Цвет   |     Hex   | Назначение |
+|------------|-----------|------------|
+| голубой    | `#56ccf2` | STATE      |
+| жёлтый     | `#ffb454` | ACTION     |
+| зелёный    | `#6fe3a5` | TEST       |  
+| красный    | `#ff6b7a` | danger     |
+| фиолетовый | `#c792ea` | —          |
+| оранжевый  | `#f78c6c` | —          |
+| синий      | `#82aaff` | —          |
+
+**Свой цвет:**
+
+```text
+|WGET|>>{"type": "areachart", "data": State.rate_history, "color": "#e67e22", "label": "Курс"}
+```
+
+### 18.11. Высота графиков
+
+**По умолчанию:**
+
+|      Тип    | Высота |
+|-------------|--------|
+| `linechart` | 100 px |
+| `areachart` | 100 px |
+| `sparkline` | 28 px  |
+| `multiline` | 120 px |
+| `bars`      | 100 px |
+
+**Своя высота:**
+
+```text
+|WGET|>>{"type": "areachart", "data": State.rate_history, "height": 180}
+```
+
+Для `sparkline` — обычно 24–40 px. Для больших графиков — 120–200 px.
+
+---
+
+## 19. Правила раздела
+
+1. Интерфейс описывается теми же маркерами, что и логика.
+2. `GRID → CELL → TRELLIS → ITEM` — 9 позиций на каждом уровне.
+3. `ITEM` внутри `ITEM` — запрещено.
+4. `TRELLIS` внутри `ITEM` — разрешено (без ограничения глубины).
+5. `CELL` имеет три уровня: `(N,M)`, `(N,M) $name`, `$name`.
+6. `WGET` с `id` обновляет содержимое контейнера.
+7. `SHOW` отображает виджет или страницу.
+8. Идентификаторы событий — `snake_case`.
+9. WSS использует `%` (класс), `$` (область), `extends`, `|media|::`.
+10. `extends` — максимум 5 уровней, циклы запрещены.
+11. Приоритет стилей: `$area` < `CELL::$area` < `%class` < путь-селектор < `|media|::` < `"style"` в `|WGET|>>`.
+12. Графики вставляются только через `|WGET|>>{}` в `CELL::`.
+13. Данные для графиков — `@arr`. Мутируй (`.append` / `.clear`).
+14. После изменения данных — вызови `|WGET|>>` для перерисовки.
+15. `color` — hex-строка; `height` — целое число пикселей; `smooth` — флаг.
+16. Мультисерии — массив массивов, цвета автоматически.
 
 ---
 
