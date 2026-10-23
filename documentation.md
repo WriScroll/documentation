@@ -3163,59 +3163,1238 @@ MAIN::start:
 
 ---
 
-## Часть V. Normative
+## 26. WriScroll — Security, Input & Business CRM
 
-### WriScroll 2.5.1 — Security, Input & Business CRM
+**Статус:** нормативное дополнение к STRUCTUR_v2_5.MD
 
-**Принцип:**
-
-- \`PERM\` определяет, **ЧТО** пользователь может сделать.
-- \`SCOPE\` определяет, **С КАКИМИ ЗАПИСЯМИ** он может работать.
-- \`apply_scope=true\` применяет ограничение на уровне \`DATASET\`, **ДО** GUI.
-
-**Ключевые правила:**
-
-1. \`WRITE = CREATE + UPDATE\`.
-2. \`PERM = action\`, \`SCOPE = record boundary\`.
-3. Имя Scope уникально в пределах приложения.
-4. \`apply_scope\` применяется runtime на уровне \`DATASET\`.
-5. Scope проверяется и при \`CREATE\`.
-6. \`RULE\` применяется после проверки права, но до изменения данных.
-7. Явные ссылки на входные данные в \`RULE\`: \`EXISTING_RECORD.field\` vs \`INPUT.field\`.
-8. \`name\` сам по себе не является уникальным ключом.
-9. AutoID — учебный механизм; для production — UUID / sequence.
-10. \`GUI ≠ SECURITY\`.
-
-**Consistency Rule:** если \`PERM\`, \`SCOPE\`, \`CHECK\`, \`VALID\` или обязательный \`RULE\` не пройдены — \`DB\`-операция не выполняется.
-
-### WriScroll 1.0.0 (2.6.0) — Strict Typing & Precision
+**Цель:** зафиксировать изменения, внесённые в reference-программу SchoolCRM, и устранить неоднозначности в Security / Scope / CRUD / Business Rules.
 
 **Принцип:**
 
-- \`TYPING\` определяет, **С КАКОЙ ТОЧНОСТЬЮ** и **В КАКОЙ ВАЛЮТЕ**.
+- `PERM` определяет, **ЧТО** пользователь может сделать.
+- `SCOPE` определяет, **С КАКИМИ ЗАПИСЯМИ** он может работать.
+- `apply_scope=true` применяет это ограничение на уровне `DATASET`, **ДО** передачи данных в GUI.
 
-**Ключевые правила:**
+### 26.1. WRITE и CREATE / UPDATE
 
-1. \`@mon\` — 2 знака, валюта сохраняется.
-2. \`@prc\` — 2 знака, вывод \`%\`.
-3. \`@dec(n)\` — \`0 ≤ n ≤ 15\`.
-4. Валюты нельзя смешивать.
-5. Постфиксный \`%\` — процент. Бинарный \`%\` — остаток.
-6. \`@prc\` нельзя присвоить в \`@mon\` без явного приведения.
-7. \`DATA ≠ CODE\`. \`@str\` никогда не исполняется как код.
-8. Все финансовые операции детерминированы.
+`WRITE` является составным правом:
 
-### WriScroll 1.0.0 (2.6.0) — Charts & Visualization
+```text
+WRITE = CREATE + UPDATE
+```
 
-**Типы:** \`linechart\`, \`areachart\`, \`sparkline\`, \`multiline\`, \`bars\`.
+**Следовательно:**
 
-**Ключевые правила:**
+- при операции создания записи runtime рассматривает `WRITE` как разрешение `CREATE`;
+- при изменении существующей записи runtime рассматривает `WRITE` как разрешение `UPDATE`;
+- `READ`, `CREATE`, `UPDATE`, `DELETE` остаются атомарными действиями;
+- `SCOPE` не является действием и не заменяет `PERM`.
 
-1. Графики вставляются через \`|WGET|>>{}\` в \`CELL::\`.
-2. Данные — \`@arr\`. Мутируй (\`.append\` / \`.clear\`).
-3. После изменения данных — \`|WGET|>>\` для перерисовки.
-4. \`color\` — hex. \`height\` — px. \`smooth\` — флаг.
-5. Мультисерии — массив массивов, цвета автоматически.
+**Нормативная модель:**
+
+```text
+PERM = action
+SCOPE = record boundary
+```
+
+**Пример:**
+
+```text
+|PERM|>>{
+    "allow": {
+        "resource": "students",
+        "action": "WRITE",
+        "scope": "teacher_students"
+    }
+}
+```
+
+означает:
+
+```text
+Teacher → CREATE/UPDATE → только записи,
+разрешённые scope teacher_students.
+```
+
+### 26.2. Именование Scope
+
+Имя Scope должно быть **уникальным** в пределах приложения.
+
+Нельзя определять два разных Scope с одинаковым:
+
+```text
+"name": "teacher_subject"
+```
+
+если они относятся к разным ресурсам или имеют разную семантику.
+
+**В reference SchoolCRM используются:**
+
+- `teacher_students`
+- `teacher_grades`
+- `self_students`
+- `self_payments`
+
+Это устраняет неоднозначность поиска Scope runtime.
+
+### 26.3. Scope `teacher_students`
+
+Учитель не должен получать `subject_id` непосредственно из записи ученика, если один ученик может изучать несколько предметов.
+
+Поэтому связь:
+
+```text
+Teacher → Subject → Student
+```
+
+реализуется через таблицу / коллекцию связи:
+
+```text
+StudentSubjects
+```
+
+**Минимальная структура:**
+
+```text
+StudentSubjects = [
+    {"student_id": 1, "subject_id": 1},
+    {"student_id": 1, "subject_id": 2}
+]
+```
+
+**Нормативный смысл:**
+
+```text
+teacher_students:
+    student.id IN StudentSubjects.student_id
+    WHERE StudentSubjects.subject_id == CURRENT_USER.subject_id
+```
+
+**Принцип:**
+
+```text
+Student
+   ↑
+StudentSubjects
+   ↑
+Subject
+   ↑
+Teacher
+```
+
+Это позволяет одному ученику иметь несколько предметов без дублирования `subject_id` внутри `Students`.
+
+### 26.4. Scope `teacher_grades`
+
+Для оценок используется отдельный Scope:
+
+```text
+name: teacher_grades
+resource: grades
+action: CREATE
+```
+
+Условие должно одновременно обеспечивать:
+
+1. оценка относится к предмету текущего учителя;
+2. ученик действительно связан с этим предметом через `StudentSubjects`.
+
+**Концептуально:**
+
+```text
+grades.subject_id == CURRENT_USER.subject_id
+AND
+grades.student_id принадлежит StudentSubjects
+для CURRENT_USER.subject_id
+```
+
+**Таким образом:**
+
+```text
+Teacher
+   ↓
+grades CREATE
+   ↓
+teacher_grades
+   ↓
+только свой предмет + свои ученики
+```
+
+### 26.5. Scope `self_students`
+
+Для пользователя Student:
+
+```text
+self_students:
+    resource: students
+    condition:
+        id == CURRENT_USER.student_id
+```
+
+Этот Scope ограничивает доступ только собственной записью ученика.
+
+### 26.6. Scope `self_payments`
+
+Для платежей нельзя использовать `self_students`, поскольку ресурс платежей имеет другую структуру.
+
+**Нормативный Scope:**
+
+```text
+self_payments:
+    resource: payments
+    action: READ
+    condition:
+        student_id == CURRENT_USER.student_id
+```
+
+**Таким образом:**
+
+```text
+Student
+   ↓
+payments READ
+   ↓
+self_payments
+   ↓
+только собственные платежи
+```
+
+### 26.7. APPLY_SCOPE — обязательная семантика runtime
+
+При:
+
+```text
+|$$|::{"apply_scope": true}
+```
+
+runtime **ОБЯЗАН** применить Scope до формирования результата `DATASET`.
+
+**Правильный порядок:**
+
+```text
+SOURCE
+  ↓
+PERMISSION / SCOPE CONTEXT
+  ↓
+SCOPE FILTER
+  ↓
+DATASET.data
+  ↓
+GUI
+```
+
+**Неправильно:**
+
+```text
+SOURCE
+  ↓
+DATASET.data
+  ↓
+GUI
+  ↓
+визуальное скрытие
+```
+
+Скрытие строк / кнопок в GUI **не является** механизмом безопасности.
+
+`apply_scope=true` должен **физически** ограничивать набор записей, который возвращается через `DATASET.data`.
+
+### 26.8. Scope и CREATE
+
+Scope не должен использоваться только как фильтр отображения.
+
+При `CREATE` runtime должен проверить, что создаваемая запись удовлетворяет scope текущего пользователя.
+
+**Например, для:**
+
+```text
+grades + CREATE + teacher_grades
+```
+
+runtime должен проверить:
+
+```text
+new_grade.subject_id == CURRENT_USER.subject_id
+```
+
+и связь:
+
+```text
+new_grade.student_id
+    → StudentSubjects
+    → CURRENT_USER.subject_id
+```
+
+Таким образом нельзя создать запись, которая не попадает в разрешённую область пользователя, даже если GUI был изменён или запрос сформирован вручную.
+
+### 26.9. RULE — бизнес-ограничения
+
+**Канонический CRUD:**
+
+```text
+|IN|>>
+|CHECK|?>>
+|VALID|?>>
+|PERM|?>>
+|RULE|?>>
+|DB|>>
+|AUDIT|>>
+|OUT|>>
+```
+
+`RULE` применяется **после** технической проверки и права доступа, но **до** изменения данных.
+
+**Примеры reference SchoolCRM:**
+
+```text
+AddPayment:
+    EXISTS(Students.data WHERE id == student_id)
+
+AddGrade:
+    EXISTS(Students.data WHERE id == student_id)
+    AND
+    EXISTS(Subjects.data WHERE id == subject_id)
+```
+
+`RULE` отвечает за бизнес-условия, а не за типизацию.
+
+### 26.10. Явные ссылки на входные данные в RULE
+
+В бизнес-условиях нельзя использовать неоднозначное:
+
+```text
+name == name
+```
+
+если одна сторона означает поле существующей записи, а другая — введённое пользователем значение.
+
+Runtime должен различать:
+
+```text
+EXISTING_RECORD.field
+INPUT.field
+```
+
+**Reference-форма:**
+
+```text
+NOT EXISTS(
+    Students.data AS student
+    WHERE student.name == INPUT.name
+      AND student.birth_date == INPUT.birth_date
+)
+```
+
+Алиасы обязательны там, где одинаковые имена могут создать неоднозначность разрешения переменных.
+
+### 26.11. Уникальность сущности
+
+Для CRM не следует считать ФИО единственным идентификатором человека.
+
+Если бизнес-правило требует проверки повторной регистрации ученика, рекомендуется составной критерий, например:
+
+```text
+name + birth_date
+```
+
+или другой бизнес-идентификатор.
+
+`name` сам по себе не является гарантированно уникальным ключом.
+
+### 26.12. Teacher permissions — reference policy
+
+Reference SchoolCRM разрешает Teacher:
+
+```text
+students READ  + teacher_students
+students WRITE + teacher_students
+subjects READ
+grades CREATE  + teacher_grades
+```
+
+Teacher **не имеет:**
+
+```text
+payments WRITE
+teachers WRITE
+system *
+```
+
+Если политика приложения требует ограничить Teacher ещё и просмотром платежей только собственных учеников, необходимо использовать отдельный:
+
+```text
+teacher_payments
+```
+
+Scope.
+
+Отсутствие Scope означает намеренно более широкий READ-доступ и должно быть осознанным решением политики приложения.
+
+### 26.13. Student permissions — reference policy
+
+Reference Student:
+
+```text
+students READ  + self_students
+payments READ  + self_payments
+subjects READ
+```
+
+и:
+
+```text
+deny resource "*" action "WRITE"
+```
+
+Таким образом Student не получает право изменять CRM-данные.
+
+### 26.14. StudentSubjects как промышленный шаблон связи
+
+`StudentSubjects` является reference-паттерном для many-to-many связи.
+
+Он предпочтительнее поля:
+
+```text
+Students.subject_id
+```
+
+если сущность может иметь несколько предметов.
+
+Этот же шаблон может использоваться для:
+
+```text
+User ↔ Group
+Student ↔ Course
+Employee ↔ Department
+Product ↔ Category
+User ↔ Project
+```
+
+WriScroll не обязан делать `StudentSubjects` встроенным системным типом. Это обычная DATA-сущность, используемая Scope / Rule / DB.
+
+### 26.15. AutoID
+
+**Reference:**
+
+```text
+AutoID()
+```
+
+является учебным / in-memory механизмом.
+
+Для production runtime рекомендуется:
+
+```text
+UUID
+DB sequence
+DB identity
+```
+
+AutoID не гарантирует безопасную генерацию уникального ID при конкурентном выполнении нескольких операций.
+
+### 26.16. Security Boundary
+
+**Полная модель CRM:**
+
+```text
+AUTH
+  ↓
+ROLE
+  ↓
+PERM
+  ↓
+SCOPE
+  ↓
+CHECK
+  ↓
+VALID
+  ↓
+RULE
+  ↓
+DB
+  ↓
+AUDIT
+  ↓
+OUT
+```
+
+При этом GUI является **только представлением:**
+
+```text
+GUI ≠ SECURITY
+```
+
+Нельзя считать удаление кнопки, скрытие `CELL` или `WIDGET` механизмом разрешения доступа.
+
+### 26.17. Reference implementation
+
+Файл:
+
+```text
+SchoolCRM_fixed.wris
+```
+
+считается reference-примером для данной редакции спецификации.
+
+**Он демонстрирует:**
+
+```text
+CRM
+SECURITY
+AUTH
+HASH
+ROLE
+PERM
+SCOPE
+DATA
+DATASET
+FORM
+SUBMIT
+IN
+CHECK
+VALID
+RULE
+DB
+AUDIT
+OUT
+WIDGET
+GRID
+CELL
+WGET
+SHOW
+EVENT
+```
+
+При этом `SchoolData` и `AutoID` являются **учебным backend-слоем**, а не промышленной СУБД.
+
+### 26.18. Consistency Rule — нормативное правило версии 2.5.1
+
+Для reference CRM каждая операция записи должна быть проверяема по цепочке:
+
+```text
+INPUT
+  ↓
+TYPE CHECK
+  ↓
+VALUE VALIDATION
+  ↓
+PERMISSION
+  ↓
+SCOPE
+  ↓
+BUSINESS RULE
+  ↓
+DATABASE
+  ↓
+AUDIT
+  ↓
+OUTPUT
+```
+
+Запрещается считать операцию безопасной только потому, что пользователь не видит соответствующий элемент GUI.
+
+Если `PERM`, `SCOPE`, `CHECK`, `VALID` или обязательный `RULE` не пройдены, `DB`-операция **не выполняется**.
+
+---
+
+## 27. WriScroll 2.6.0 — Strict Typing & Precision
+
+**Статус:** нормативный. При конфликте с §1–§24 применяется правило §25.
+
+**Цель:** зафиксировать строгую типизацию и контроль точности для финансовых вычислений (`@mon`, `@prc`, `@dec(n)`), ввести постфиксный оператор `%`, запретить смешивание валют и добавить новые функции / маркеры для округления, форматирования, конвертации и проверки точности.
+
+**Принцип:**
+
+- `PERM` определяет, **ЧТО** пользователь может сделать.
+- `SCOPE` определяет, **С КАКИМИ ЗАПИСЯМИ** он может работать.
+- `TYPING` определяет, **С КАКОЙ ТОЧНОСТЬЮ** и **В КАКОЙ ВАЛЮТЕ**.
+
+### 27.1. @mon — деньги (2 знака после запятой)
+
+```text
+|$|::{price@mon = 99.999}
+# → 100.00 (автоматическое округление)
+
+|$|::{price@mon = 99.994}
+# → 99.99
+
+|$|::{price@mon = 99.995}
+# → 100.00 (half-up)
+
+|$|::{price@mon = 100.00 USD}
+# → 100.00 USD (валюта сохраняется)
+
+|$|::{price@mon = 50.00 EUR}
+# → 50.00 EUR
+
+|$|::{price@mon = 150000}
+# → 150000.00 (без валюты, currency = null)
+```
+
+**Нормативно:**
+
+- `@mon` всегда округляется до 2 знаков (половина вверх);
+- валюта (`@mon = amount + currency`) хранится вместе со значением;
+- если валюта не указана, `currency = null`;
+- при арифметике валюты нельзя смешивать;
+- если одна из сторон без валюты, результат без валюты;
+- вывод в консоль: `"100.00 USD"` / `"100.00"`.
+
+### 27.2. @prc — проценты (2 знака, вывод `"15.00%"`)
+
+```text
+|$|::{tax@prc = 20}
+# → 20.00%
+
+|$|::{tax@prc = 20.555}
+# → 20.56% (автоматическое округление)
+
+|$|::{tax@prc = 15%}
+# → 15.00%
+```
+
+**Нормативно:**
+
+- `@prc` всегда округляется до 2 знаков;
+- внутреннее представление: `{ __prc: number }`;
+- вывод в консоль: `"15.00%"` (с символом `%`);
+- `@prc` нельзя присвоить в `@mon` и наоборот;
+- при умножении `money * prc` → `money` (процент от money);
+- при сложении / вычитании `money ± prc` → надбавка / скидка.
+
+### 27.3. @dec(n) — десятичное с точностью n
+
+```text
+|$|::{weight@dec(3) = 1.2345}
+# → 1.235
+
+|$|::{weight@dec(0) = 1.5}
+# → 2
+
+|$|::{weight@dec(2) = 1.2345}
+# → 1.23
+```
+
+**Эквивалентные записи:**
+
+```text
+@dec(3)  и  @dec_3
+@dec(0)  и  @dec_0
+```
+
+**Нормативно:**
+
+- `@dec(n)` округляет до `n` знаков после запятой;
+- `n` — целое число от 0 до 15;
+- вывод в консоль: `"1.235"` (без валюты и без `%`);
+- `@dec(n)` не смешивается с `@mon` и `@prc` автоматически.
+
+### 27.4. Постфиксный оператор `%` — процент
+
+WriScroll 2.6.0 вводит **контекстно-зависимое** значение оператора `%`.
+
+**Бинарный `%` — остаток от деления (обратная совместимость):**
+
+```text
+17 % 5
+→ 2
+
+x % y
+→ x - floor(x/y)*y
+```
+
+**Постфиксный `%` — процент:**
+
+```text
+15%
+→ { __pctValue: 15 }
+
+price * 20%
+→ 20% от price (money)
+
+price + 20%
+→ price * 1.20 (надбавка)
+
+price - 15%
+→ price * 0.85 (скидка)
+
+100 * 50%
+→ 50 (число, доля)
+
+tax@prc = 15%
+→ 15.00%
+```
+
+**Различие:**
+
+Если справа от `%` стоит **ОПЕРАНД** (число, строка, идентификатор, `(`, `[`, `{` или `@тип`, `|маркер|`) — оператор **бинарный** (остаток).
+
+Если справа от `%` стоит **КОНЕЦ выражения**, `)`, `]`, `}`, `:`, `?`, запятая или другой оператор — оператор **постфиксный** (процент).
+
+**Примеры:**
+
+```text
+a % b         → остаток (после % идёт идентификатор b)
+a % 5         → остаток (после % идёт число)
+20 * 15%      → 15% (после % — конец выражения)
+price + 20%   → надбавка (после % — конец выражения)
+f(x%)         → процент (после % — )
+nums[0]%      → процент (после % — ])
+a% + b        → процент от a, затем сложение
+a % b%        → остаток от a на (b%)
+```
+
+### 27.5. Арифметика @mon (валюты и точность)
+
+```text
+a@mon + b@mon          → money (валюты совпадают или одна null)
+a@mon - b@mon          → money
+a@mon * 2              → money (умножение на число)
+a@mon * b@prc          → money (процент от money)
+a@mon + b@prc          → money * (1 + b/100)   (надбавка)
+a@mon - b@prc          → money * (1 - b/100)   (скидка)
+a@mon / 2              → money
+a@mon / b@prc          → money / (b/100)
+```
+
+Все результаты `@mon` округляются до 2 знаков.
+
+**При смешении разных валют — ошибка типа:**
+
+```text
+|$|::{a@mon = 100.00 USD}
+|$|::{b@mon = 50.00 EUR}
+|$|::{c@mon = a + b}      # ОШИБКА: Нельзя смешивать USD и EUR
+```
+
+### 27.6. Новые маркеры и функции
+
+**ACTION-маркеры (`>>`):**
+
+```text
+|ROUND|>>{value, "bankers"}          — банковское округление
+|ROUND|>>{value, "ceil"}             — округление вверх
+|ROUND|>>{value, "floor"}            — округление вниз
+|ROUND|>>{value, "half_up"}          — половина вверх (по умолчанию)
+
+|FORMAT|>>{value}                    — форматирование @mon (валюта из значения)
+|FORMAT|>>{value, "USD"}             — "$120.56"
+|FORMAT|>>{value, "EUR"}             — "€120.56"
+|FORMAT|>>{value, "RUB"}             — "120.56 ₽"
+|FORMAT|>>{value, "UZS"}             — "120.56 UZS"
+|FORMAT|>>{value, "KZT"}             — "120.56 ₸"
+|FORMAT|>>{tax@prc}                  — "20.56%"
+
+|CURRENCY|>>{value}                  — "USD" / "" (если валюты нет)
+|AMOUNT|>>{value}                    — 120.56 (число без валюты)
+|IS_SAME|>>{a, b}                    — true, если валюты совпадают
+|CONVERT|>>{value, "EUR", 1.1}       — конвертация по курсу
+|CHECK_PRECISION|>>{value, "mon", 2} — true/false
+```
+
+**Builtin-функции (можно вызывать как обычные функции):**
+
+```text
+ROUND(v, "bankers") / ROUND_UP(v) / ROUND_DOWN(v) / ROUND_HALF_UP(v)
+FORMAT(v, "USD") / CURRENCY(v) / AMOUNT(v) / IS_SAME(a, b)
+CONVERT(v, "EUR", 1.1) / CHECK_PRECISION(v, "mon", 2)
+```
+
+### 27.7. Вывод значений в консоль
+
+```text
+|?|>>{100.00}                 → "100.00"
+|?|>>{100.00 USD}             → "100.00 USD"
+|?|>>{15%}                    → "15.00%"
+|?|>>{|FORMAT|>>{v, "USD"}}   → "$100.00"
+|?|>>{|FORMAT|>>{v, "UZS"}}   → "100.00 UZS"
+|?|>>{|CURRENCY|>>{v}}        → "USD"
+|?|>>{|AMOUNT|>>{v}}          → "100.00"
+```
+
+### 27.8. Пример: финансовый расчёт
+
+```text
+MAIN::start:
+    |F5|::{"level": "verbose"}
+
+    # ─── 1. ДЕНЬГИ И ПРОЦЕНТЫ ───
+    |$|::{price@mon = 99.999}
+    |F5|>>{"  price: " + price}          # → 100.00
+
+    |$|::{tax_rate@prc = 20.555}
+    |F5|>>{"  tax_rate: " + tax_rate}    # → 20.56%
+
+    # ─── 2. @dec(n) ───
+    |$|::{weight@dec(3) = 1.2345}
+    |F5|>>{"  weight: " + weight}        # → 1.235
+
+    # ─── 3. ПОСТФИКСНЫЙ % ───
+    |$|::{price_usd@mon = 100.00 USD}
+    |$|::{tax_usd@mon = price_usd * 20%}
+    |F5|>>{"  tax_usd: " + tax_usd}      # → 20.00 USD
+
+    |$|::{total_usd@mon = price_usd + 20%}
+    |F5|>>{"  total_usd: " + total_usd}  # → 120.00 USD
+
+    |$|::{discounted@mon = price_usd - 15%}
+    |F5|>>{"  discounted: " + discounted} # → 85.00 USD
+
+    # ─── 4. БИНАРНЫЙ % — ОСТАТОК ───
+    |?|>>{"17 % 5 = " + (17 % 5)}        # → 2
+
+    # ─── 5. КОНВЕРТАЦИЯ ───
+    |$|::{price_eur@mon = |CONVERT|>>{price_usd, "EUR", 0.92}}
+    |F5|>>{"  price_eur: " + price_eur}  # → 92.00 EUR
+
+    # ─── 6. ФОРМАТИРОВАНИЕ ───
+    |$|::{display@str = |FORMAT|>>{total_usd, "USD"}}
+    |?|>>{"  display: " + display}       # → $120.00
+
+    |?|>>{"  tax как процент: " + |FORMAT|>>{tax_rate}}  # → 20.56%
+
+    # ─── 7. БАНКОВСКОЕ ОКРУГЛЕНИЕ ───
+    |$|::{r1@mon = |ROUND|>>{119.985, "bankers"}}
+    |?|>>{"  bankers(119.985) = " + r1} # → 119.98
+
+    |$|::{r2@mon = |ROUND|>>{119.995, "bankers"}}
+    |?|>>{"  bankers(119.995) = " + r2} # → 120.00
+
+    # ─── 8. ПРОВЕРКА ТОЧНОСТИ ───
+    |$|::{ok@bol = |CHECK_PRECISION|>>{price_usd, "mon", 2}}
+    |?|>>{"  precision mon=2: " + ok}    # → true
+
+    # ─── 9. СМЕШЕНИЕ ВАЛЮТ — ОШИБКА ───
+    |$|::{price_eur2@mon = 50.00 EUR}
+    TRY:
+        |$|::{bad@mon = price_usd + price_eur2}
+    :TRY
+    EXP error:
+        |?|>>{"⛔ " + error}              # → Нельзя смешивать валюты: USD и EUR
+    :EXP
+
+    |OUT|>>{"message": "§25: типы и точность в порядке"}
+::MAIN
+```
+
+### 27.9. Сравнение 2.5.1 vs 2.6.0
+
+|        Возможность        | 2.5.1 |             2.6.0            |
+|---------------------------|-------|------------------------------|
+| Контроль точности `@mon`  |   —   | + 2 знака                    |
+| Контроль точности `@prc`  |   —   | + 2 знака, вывод `%`         |
+| `@dec(n)` с точностью     |   —   | + `@dec(0)…@dec(15)`         |
+| Проверка валют            |   —   | + `USD / EUR / UZS / …`      |
+| Сложение разных валют     |   —   | + Ошибка типа                |
+| Конвертация валют         |   —   | + `\|CONVERT\|>>`            |
+| Банковское округление     |   —   | + `\|ROUND\|>>{…,"bankers"}` |
+| Проверка точности         |   —   | + `\|CHECK_PRECISION\|>>`    |
+| Форматирование с валютой  |   —   | + `\|FORMAT\|>>`             |
+| Постфиксный `%` (процент) |   —   | + `price + 20%`              |
+| Бинарный `%` (остаток)    |   +   | + (обратная совместимость)   |
+
+### 27.10. Приоритет правил §25
+
+1. Точность `@mon` и `@prc` — всегда 2 знака, автоматически.
+2. `@dec(n)` округляет до `n` знаков (`0 ≤ n ≤ 15`).
+3. Валюты нельзя смешивать. Если одна сторона без валюты — результат без валюты.
+4. Постфиксный `%` — процент. Бинарный `%` — остаток (обратная совместимость).
+5. `@prc` нельзя присвоить в `@mon` (и наоборот) без явного приведения.
+6. `DATA ≠ CODE`. `@str` никогда не исполняется как код.
+7. `GUI ≠ SECURITY`. Скрытие ≠ запрет. `PERM ≠ VISIBILITY`.
+8. Все финансовые операции должны быть детерминированы (без накопления ошибок с плавающей точкой).
+
+---
+
+## 28. WriScroll 2.6.0 — Charts & Visualization
+
+**Статус:** нормативный. Описывает GUI-виджеты для визуализации данных во вкладке «Браузер» (GUI-рантайм).
+
+Все графики объявляются через `|WGET|>>{}` внутри `CELL::` виджета. Данные берутся из массивов `@arr`. Цвет, высота и сглаживание — настраиваются.
+
+### 28.1. Общие принципы
+
+Каждый график — это виджет, вставляемый через `|WGET|>>{}`:
+
+```text
+CELL::(col, row):
+  |WGET|>>{"type": "ТИП_ГРАФИКА", "data": МАССИВ, ...параметры}
+::CELL
+```
+
+**Где:**
+
+- `type` — тип графика (`linechart`, `areachart`, `sparkline`, `multiline`, `bars`)
+- `data` — массив чисел (`@arr`) или массив массивов (для `multiline`)
+- `label` — подпись над графиком (опционально)
+- `color` — цвет линии в hex (опционально)
+- `height` — высота в пикселях (опционально, по умолчанию 100)
+
+Данные должны **обновляться** через мутации массива (`.append`, `.clear`), а не через переприсваивание (`= []`), иначе график не перерисуется.
+
+### 28.2. Типы графиков — сводная таблица
+
+|     Тип     |         Что рисует    |    Когда использовать     |
+|-------------|-----------------------|---------------------------|
+| `linechart` | Линия                 | Динамика во времени       |
+| `areachart` | Линия + заливка       | Красивая динамика, акцент |
+| `sparkline` | Мини-график без осей  | Внутри метрик, таблиц     |
+| `multiline` | Несколько серий линий | Сравнение 2+ показателей  |
+| `bars`      | Столбцы с осями       | Сравнение величин, объёмы |
+| `chart`     | Старый (столбики)     | Только для legacy-кода    |
+
+### 28.3. linechart — линия
+
+Линейный график с осями, сеткой и точками.
+
+**Параметры:**
+
+- `type`: `"linechart"`
+- `data`: массив чисел
+- `label`: подпись (опционально)
+- `color`: hex-цвет линии (опционально, по умолчанию `#56ccf2`)
+- `height`: высота в px (опционально, по умолчанию 100)
+- `smooth`: `true` — сглаженная кривая (опционально)
+- `axes`: `false` — скрыть оси и сетку (опционально)
+- `dots`: `false` — скрыть точки на линии (опционально)
+
+**Пример:**
+
+```text
+CELL::(0,0):
+  |WGET|>>{
+    "type": "linechart",
+    "data": State.rate_history,
+    "label": "📈 Курс USD",
+    "color": "#56ccf2",
+    "height": 100
+  }
+::CELL
+```
+
+**Со сглаживанием:**
+
+```text
+CELL::(0,1):
+  |WGET|>>{
+    "type": "linechart",
+    "data": State.rate_history,
+    "label": "📈 Плавная динамика",
+    "smooth": true
+  }
+::CELL
+```
+
+### 28.4. areachart — линия с заливкой
+
+Площадной график: линия + градиентная заливка под ней.
+
+**Параметры** (те же, что у `linechart`, плюс):
+
+- `smooth`: `true` по умолчанию — плавная кривая
+
+**Пример:**
+
+```text
+CELL::(0,0):
+  |WGET|>>{
+    "type": "areachart",
+    "data": State.rate_history,
+    "label": "💵 Курс USD (area)",
+    "color": "#56ccf2",
+    "height": 110
+  }
+::CELL
+```
+
+### 28.5. sparkline — мини-график
+
+Компактный график без осей и сетки. Хорош внутри метрик и строк таблицы.
+
+**Параметры:**
+
+- `type`: `"sparkline"`
+- `data`: массив чисел
+- `color`: hex-цвет (опционально, по умолчанию `#6fe3a5`)
+- `height`: высота в px (опционально, по умолчанию 28)
+- `smooth`: `true` по умолчанию — плавная кривая
+- `area`: `false` — без заливки под линией
+
+**Пример:**
+
+```text
+CELL::(1,0):
+  |WGET|>>{
+    "type": "sparkline",
+    "data": State.rate_history_usd,
+    "color": "#56ccf2",
+    "height": 32
+  }
+::CELL
+```
+
+### 28.6. multiline — несколько серий
+
+График с несколькими линиями разных цветов. Легенда вверху.
+
+**Параметры:**
+
+- `type`: `"multiline"`
+- `data`: массив массивов: `[[серия1], [серия2], ...]`
+- `labels`: массив имён серий: `["USD", "EUR"]` (опционально)
+- `label`: подпись всего графика
+- `height`: высота в px (по умолчанию 120)
+- `smooth`: `true` по умолчанию — плавные кривые
+
+**Цвета серий автоматически чередуются:**
+
+```text
+#56ccf2 (голубой), #ffb454 (жёлтый), #6fe3a5 (зелёный),
+#ff6b7a (красный), #c792ea (фиолетовый), #f78c6c (оранжевый),
+#82aaff (синий)
+```
+
+**Пример:**
+
+```text
+CELL::(0,2):
+  |WGET|>>{
+    "type": "multiline",
+    "data": [State.rate_history_usd, State.rate_history_eur],
+    "labels": ["USD", "EUR"],
+    "label": "📈 Сравнение курсов",
+    "height": 120
+  }
+::CELL
+```
+
+### 28.7. bars — столбцы с осями
+
+Столбчатая диаграмма с осями и сеткой. Последний столбец выделяется цветом (акцент).
+
+**Параметры:**
+
+- `type`: `"bars"`
+- `data`: массив чисел
+- `label`: подпись
+- `color`: hex-цвет последнего столбца (по умолчанию `#ffb454`)
+- `height`: высота в px (по умолчанию 100)
+- `axes`: `false` — скрыть оси (опционально)
+
+**Пример:**
+
+```text
+CELL::(1,2):
+  |WGET|>>{
+    "type": "bars",
+    "data": State.volume_history,
+    "label": "📊 Объёмы",
+    "color": "#ffb454",
+    "height": 120
+  }
+::CELL
+```
+
+### 28.8. Встраивание в WIDGET — полный пример
+
+```text
+SYS::State:
+  |$|::{rate_history_usd@arr = [12650.00, 12700.00, 12680.00, 12750.00]}
+  |$|::{rate_history_eur@arr = [13750.00, 13800.00, 13780.00, 13850.00]}
+  |$|::{capital@mon = 100000000.00 UZS}
+::SYS
+
+WIDGET::TraderCharts:
+  GRID::ChartsGrid:
+    |$$|::{"cols": 2, "rows": 3}
+
+    CELL::(0,0):
+      |WGET|>>{"type": "areachart", "data": State.rate_history_usd, "label": "💵 USD (area)", "color": "#56ccf2", "height": 110}
+    ::CELL
+
+    CELL::(1,0):
+      |WGET|>>{"type": "areachart", "data": State.rate_history_eur, "label": "💶 EUR (area)", "color": "#ffb454", "height": 110}
+    ::CELL
+
+    CELL::(0,1):
+      |WGET|>>{
+        "type": "multiline",
+        "data": [State.rate_history_usd, State.rate_history_eur],
+        "labels": ["USD", "EUR"],
+        "label": "📈 Сравнение курсов",
+        "height": 120
+      }
+    ::CELL
+
+    CELL::(1,1):
+      |WGET|>>{"type": "bars", "data": State.rate_history_usd, "label": "📊 Объёмы USD", "height": 120}
+    ::CELL
+
+    CELL::(0,2):
+      |WGET|>>{"type": "metric", "label": "💰 Капитал", "value": |AMOUNT|>>{State.capital}, "unit": "UZS"}
+      |WGET|>>{"type": "sparkline", "data": State.rate_history_usd, "color": "#6fe3a5", "height": 32}
+    ::CELL
+
+    CELL::(1,2):
+      |WGET|>>{"type": "linechart", "data": State.rate_history_usd, "label": "📈 Линия USD", "smooth": true}
+    ::CELL
+
+  ::GRID
+::WIDGET
+
+MAIN::start:
+  |SHOW|>>{"TraderCharts"}
+::MAIN
+```
+
+### 28.9. Обновление данных и перерисовка
+
+**Важно:** данные для графиков должны **мутироваться**, не переприсваиваться.
+
+**Правильно:**
+
+```text
+FUNC::AddRate:
+  {{new_rate@flt}}
+  |$|::{State.rate_history_usd.append(new_rate)}   # мутация
+  |WGET|>>{"id": "content_area", "widget": "TraderCharts"}
+::FUNC
+```
+
+**Неправильно:**
+
+```text
+FUNC::BadAddRate:
+  {{new_rate@flt}}
+  |$|::{State.rate_history_usd = [new_rate]}       # переприсваивание — рвёт ссылку
+  |WGET|>>{"id": "content_area", "widget": "TraderCharts"}
+::FUNC
+```
+
+**Правило:** для `@arr` используй `.append()` / `.clear()` / `.remove()` / `.pop()`, не присваивай новый массив.
+
+Если ссылка разорвана — график покажет старые данные, даже после `|WGET|>>` и `|SHOW|>>`.
+
+### 28.10. Цвета и темы
+
+**Базовые цвета (по умолчанию):**
+
+```text
+#56ccf2  — голубой (STATE)
+#ffb454  — жёлтый (ACTION)
+#6fe3a5  — зелёный (TEST)
+#ff6b7a  — красный (danger)
+#c792ea  — фиолетовый
+#f78c6c  — оранжевый
+#82aaff  — синий
+```
+
+**Можно задать любой hex в параметре `"color"`:**
+
+```text
+|WGET|>>{"type": "areachart", "data": State.rate_history, "color": "#e67e22", "label": "Курс"}
+```
+
+### 28.11. Высота графиков
+
+**По умолчанию:**
+
+```text
+linechart  — 100 px
+areachart  — 100 px
+sparkline  — 28 px
+multiline  — 120 px
+bars       — 100 px
+```
+
+**Можно задать через `"height"`:**
+
+```text
+|WGET|>>{"type": "areachart", "data": State.rate_history, "height": 180}
+```
+
+Для `sparkline` — обычно 24–40 px. Для больших графиков — 120–200 px.
+
+### 28.12. Типичные сценарии
+
+**Сценарий 1: Дашборд с двумя графиками курсов**
+
+```text
+CELL::(0,0):
+  |WGET|>>{"type": "areachart", "data": State.rate_history_usd, "label": "USD", "color": "#56ccf2"}
+::CELL
+CELL::(1,0):
+  |WGET|>>{"type": "areachart", "data": State.rate_history_eur, "label": "EUR", "color": "#ffb454"}
+::CELL
+```
+
+**Сценарий 2: Метрика + sparkline**
+
+```text
+CELL::(0,1):
+  |WGET|>>{"type": "metric", "label": "Выручка", "value": |AMOUNT|>>{State.capital}, "unit": "UZS"}
+  |WGET|>>{"type": "sparkline", "data": State.capital_history, "color": "#6fe3a5"}
+::CELL
+```
+
+**Сценарий 3: Сравнение валют**
+
+```text
+CELL::(0,2):
+  |WGET|>>{
+    "type": "multiline",
+    "data": [State.usd_history, State.eur_history, State.rub_history],
+    "labels": ["USD", "EUR", "RUB"],
+    "label": "Все курсы"
+  }
+::CELL
+```
+
+**Сценарий 4: Объёмы по дням**
+
+```text
+CELL::(0,3):
+  |WGET|>>{"type": "bars", "data": State.daily_volume, "label": "Оборот по дням", "color": "#ffb454"}
+::CELL
+```
+
+**Сценарий 5: KPI с трендом (внутри метрики)**
+
+```text
+CELL::(0,4):
+  |WGET|>>{
+    "type": "metric",
+    "label": "📊 P&L за день",
+    "value": |AMOUNT|>>{KPI.DailyPnL.result},
+    "unit": "UZS"
+  }
+  |WGET|>>{"type": "sparkline", "data": KPI.DailyPnL.result.history, "color": "#6fe3a5"}
+::CELL
+```
+
+### 28.13. Сравнение с прошлыми версиями
+
+|    Возможность   |   2.5.1   |               2.6.0            |
+|------------------|-----------|--------------------------------|
+| Линейный график  | —         | + `linechart`                  |
+| Площадной график | —         | + `areachart`                  |
+| Мультисерии      | —         | + `multiline`                  |
+| Мини-график      | —         | + `sparkline`                  |
+| Столбцы с осями  | ! `chart` | + `bars` (с осями и сеткой)    |
+| Сглаживание      | —         | + `smooth: true` (Catmull-Rom) |
+| Настройка цвета  | !         | + `color: "#hex"`              |
+| Настройка высоты | —         | + `height: N`                  |
+
+### 28.14. Приоритет правил §26
+
+1. Графики вставляются только через `|WGET|>>{}` в `CELL::`.
+2. Данные — массив `@arr`. Мутируй его (`.append` / `.clear`).
+3. После изменения данных — вызови `|WGET|>>` для перерисовки.
+4. `color` — hex-строка. Если не указан — по умолчанию голубой.
+5. `height` — целое число пикселей.
+6. `smooth` — `true` для плавной кривой, `false` для угловатой.
+7. `axes` / `dots` / `area` — флаги для тонкой настройки.
+8. Мультисерии — массив массивов, цвета автоматически.
 
 ---
 
